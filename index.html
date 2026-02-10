@@ -111,7 +111,7 @@
             <div class="bg-red-900 bg-opacity-50 px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base">
                 <span class="font-medium">遺漏: </span>
                 <span id="missed-count" class="text-base sm:text-lg font-bold text-red-400">0</span>
-                <span class="font-medium"> / 10</span>
+                <span class="font-medium"> / 5</span>
             </div>
         </div>
         
@@ -223,7 +223,7 @@
         let completedCount = 0;
         let score = 0;
         let missedCount = 0; 
-        let maxMisses = 10;
+        let maxMisses = 5;
         let initialCharactersOnScreen = 1;
         let isComposing = false; // 用於追蹤注音輸入法組字狀態
         
@@ -319,7 +319,7 @@
                     
                     // 檢查是否達到遺漏上限
                     if (missedCount >= maxMisses) {
-                        endGame("遺漏次數過多！");
+                        endGame("GAME OVER");
                         return;
                     }
                     
@@ -366,7 +366,20 @@
             const inputHandler = (e) => {
                 // 對於非組字輸入(如英文鍵盤)，即時處理
                 if (!isComposing) {
-                    processInput(e.target.value);
+                    const inputValue = e.target.value;
+                    processInput(inputValue);
+                    
+                    // 檢查輸入是否包含聲調鍵 (3, 4, 6, 7)
+                    // 如果包含聲調，處理後立即清空輸入區
+                    const toneKeys = ['3', '4', '6', '7'];
+                    const lastChar = inputValue.slice(-1);
+                    if (toneKeys.includes(lastChar)) {
+                        setTimeout(() => {
+                            if (!isComposing) {
+                                inputField.value = '';
+                            }
+                        }, 10);
+                    }
                 }
             };
 
@@ -387,6 +400,7 @@
             };
             
             const keyDownHandler = (e) => {
+                // 空白鍵代表一聲（無聲調符號）
                 if (e.key === ' ') {
                     const currentInput = e.target.value;
                     if (!currentInput) return;
@@ -394,11 +408,12 @@
                     const potentialMatch = currentInput + ' ';
                     const targetFc = findMatchingChar(potentialMatch);
 
+                    e.preventDefault();
                     if (targetFc) {
-                        e.preventDefault();
                         handleSuccess(targetFc);
-                        inputField.value = '';
                     }
+                    // 不論是否成功，都清除輸入區
+                    inputField.value = '';
                 }
             };
 
