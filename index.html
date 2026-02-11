@@ -32,9 +32,16 @@
             backdrop-filter: blur(5px);
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             font-weight: 700;
-            transition: transform 0.2s, opacity 0.2s;
+            transition: transform 0.2s, opacity 0.2s, background 0.3s, box-shadow 0.3s;
             padding: 5px;
             text-align: center;
+        }
+        
+        .falling-character.locked {
+            background: rgba(52, 211, 153, 0.3);
+            box-shadow: 0 0 20px rgba(52, 211, 153, 0.6), 0 0 40px rgba(52, 211, 153, 0.4);
+            border: 2px solid rgba(52, 211, 153, 0.8);
+            transform: scale(1.1);
         }
         
         .falling-character.hit {
@@ -86,25 +93,6 @@
                 height: 65px;
             }
         }
-        
-        /* 滾動條樣式 */
-        #top10-list::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        #top10-list::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 3px;
-        }
-        
-        #top10-list::-webkit-scrollbar-thumb {
-            background: rgba(72, 219, 251, 0.5);
-            border-radius: 3px;
-        }
-        
-        #top10-list::-webkit-scrollbar-thumb:hover {
-            background: rgba(72, 219, 251, 0.8);
-        }
     </style>
 </head>
 <body class="text-white">
@@ -131,6 +119,9 @@
                 <span class="font-medium">遺漏: </span>
                 <span id="missed-count" class="text-base sm:text-lg font-bold text-red-400">0</span>
                 <span class="font-medium"> / 5</span>
+            </div>
+            <div class="bg-gray-700 bg-opacity-50 px-2 py-1 sm:px-3 sm:py-1 rounded-lg text-xs sm:text-sm text-gray-300">
+                <span class="hidden sm:inline">輸入 </span>quit<span class="hidden sm:inline"> 結束</span>
             </div>
         </div>
         
@@ -172,7 +163,7 @@
             <!-- TOP 10 排行榜 -->
             <div class="mb-6 bg-gray-900 bg-opacity-50 rounded-lg p-4">
                 <h3 class="text-lg font-bold text-center mb-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">🏆 TOP 10 排行榜</h3>
-                <div id="top10-list" class="space-y-2 text-sm max-h-64 overflow-y-auto">
+                <div id="top10-list" class="space-y-2 text-sm">
                     <!-- TOP 10 列表將動態生成 -->
                 </div>
             </div>
@@ -311,10 +302,9 @@
             let scores = getScores();
             scores.push(scoreData);
             
-            // 只保留最近 100 次成績
-            if (scores.length > 100) {
-                scores = scores.slice(-100);
-            }
+            // 按分數排序（降序），只保留前 10 名
+            scores.sort((a, b) => b.score - a.score);
+            scores = scores.slice(0, 10);
             
             localStorage.setItem('typingGameScores', JSON.stringify(scores));
             return scoreData;
@@ -328,41 +318,56 @@
         function calculateRank(currentScore) {
             const scores = getScores();
             if (scores.length === 0) {
-                return { rank: 1, total: 1, isNewRecord: true };
+                // 第一次遊戲
+                return { rank: 1, isNewRecord: false, inTop10: true, highScore: null };
             }
             
             // 按分數排序（降序）
             const sortedScores = [...scores].sort((a, b) => b.score - a.score);
+            const highScore = sortedScores[0].score;
             
-            // 找到當前分數的排名
+            // 計算排名
             let rank = 1;
             for (let i = 0; i < sortedScores.length; i++) {
-                if (currentScore >= sortedScores[i].score) {
+                if (currentScore > sortedScores[i].score) {
                     rank = i + 1;
                     break;
-                }
-                if (i === sortedScores.length - 1) {
+                } else if (i === sortedScores.length - 1) {
+                    // 比所有記錄都低或相等
                     rank = sortedScores.length + 1;
                 }
             }
             
-            const isNewRecord = rank === 1 && scores.length > 0;
-            return { rank: rank, total: scores.length + 1, isNewRecord: isNewRecord, highScore: sortedScores[0].score };
+            const inTop10 = rank <= 10;
+            const isNewRecord = currentScore > highScore;
+            
+            return { rank: rank, isNewRecord: isNewRecord, inTop10: inTop10, highScore: highScore };
         }
         
-        function displayRankInfo(rank, total, isNewRecord, highScore, currentScore) {
+        function displayRankInfo(rank, isNewRecord, inTop10, highScore, currentScore) {
             // 顯示排名
-            const rankText = `第 ${rank} 名 / 共 ${total} 次`;
-            rankDisplayElement.textContent = rankText;
+            if (inTop10) {
+                const rankText = `第 ${rank} 名`;
+                rankDisplayElement.textContent = rankText;
+            } else {
+                rankDisplayElement.textContent = '未上榜';
+            }
             
             // 顯示額外信息
-            if (isNewRecord) {
-                highScoreDisplayElement.innerHTML = '<span class="text-yellow-400 font-bold">🎉 恭喜！創造新紀錄！</span>';
-            } else if (rank === 1 && total === 1) {
+            if (rank === 1 && !highScore) {
+                // 第一次遊戲
                 highScoreDisplayElement.innerHTML = '<span class="text-cyan-400">這是你的第一次遊戲！</span>';
-            } else {
+            } else if (isNewRecord) {
+                highScoreDisplayElement.innerHTML = '<span class="text-yellow-400 font-bold">🎉 恭喜！創造新紀錄！</span>';
+            } else if (inTop10) {
                 const difference = highScore - currentScore;
-                highScoreDisplayElement.innerHTML = `<span class="text-gray-400">歷史最高分：${highScore} 分</span><br><span class="text-sm text-gray-500">距離最高分還差 ${difference} 分</span>`;
+                highScoreDisplayElement.innerHTML = `<span class="text-gray-400">最高分：${highScore} 分</span><br><span class="text-sm text-gray-500">距離最高分還差 ${difference} 分</span>`;
+            } else {
+                // 未上榜，顯示距離 TOP 10 的差距
+                const scores = getScores();
+                const lowestTop10Score = scores[Math.min(9, scores.length - 1)]?.score || 0;
+                const difference = lowestTop10Score - currentScore + 1;
+                highScoreDisplayElement.innerHTML = `<span class="text-gray-400">繼續努力！</span><br><span class="text-sm text-gray-500">距離 TOP 10 還差 ${difference} 分</span>`;
             }
         }
         
@@ -416,16 +421,6 @@
             });
             
             top10ListElement.innerHTML = html;
-            
-            // 顯示與第10名的差距（如果不在TOP 10內）
-            if (top10.length === 10) {
-                const top10Score = top10[9].score;
-                if (currentScore < top10Score) {
-                    const difference = top10Score - currentScore;
-                    const extraInfo = `<p class="text-center text-xs text-gray-400 mt-2">距離 TOP 10 還差 ${difference} 分</p>`;
-                    top10ListElement.innerHTML += extraInfo;
-                }
-            }
         }
 
         function spawnNewCharacter() {
@@ -518,6 +513,7 @@
             
             inputField.focus();
             inputField.value = '';
+            updateTargetLocking(''); // 確保沒有鎖定狀態
             setupInputListeners();
 
             // 根據當前目標數量生成初始字元
@@ -528,6 +524,7 @@
         }
         
         let inputListenersSetup = false;
+        
         function setupInputListeners() {
             if (inputListenersSetup) return;
 
@@ -535,6 +532,21 @@
                 // 對於非組字輸入(如英文鍵盤)，即時處理
                 if (!isComposing) {
                     const inputValue = e.target.value;
+                    
+                    // 檢測 quit 命令
+                    if (inputValue.toLowerCase() === 'quit') {
+                        const confirmed = confirm('確定要結束遊戲嗎？目前的成績會被記錄。');
+                        if (confirmed) {
+                            endGame('提前結束');
+                        }
+                        inputField.value = '';
+                        updateTargetLocking('');
+                        return;
+                    }
+                    
+                    // 更新目標鎖定高亮
+                    updateTargetLocking(inputValue);
+                    
                     processInput(inputValue);
                     
                     // 檢查輸入是否包含聲調鍵 (3, 4, 6, 7)
@@ -545,6 +557,7 @@
                         setTimeout(() => {
                             if (!isComposing) {
                                 inputField.value = '';
+                                updateTargetLocking(''); // 清除所有鎖定
                             }
                         }, 10);
                     }
@@ -555,6 +568,13 @@
                 isComposing = true;
             };
 
+            const compositionUpdateHandler = (e) => {
+                // 在組字過程中也更新鎖定狀態
+                if (e.data) {
+                    updateTargetLocking(e.data);
+                }
+            };
+
             const compositionEndHandler = (e) => {
                 isComposing = false;
                 // 在組字結束後，處理最終的注音字串
@@ -563,6 +583,7 @@
                 setTimeout(() => {
                     if (inputField.value === (e.data || e.target.value)) {
                        inputField.value = '';
+                       updateTargetLocking(''); // 清除所有鎖定
                     }
                 }, 0);
             };
@@ -580,8 +601,9 @@
                     if (targetFc) {
                         handleSuccess(targetFc);
                     }
-                    // 不論是否成功，都清除輸入區
+                    // 不論是否成功，都清除輸入區和鎖定狀態
                     inputField.value = '';
+                    updateTargetLocking('');
                 }
             };
 
@@ -589,12 +611,14 @@
             inputField.removeEventListener('input', inputHandler);
             inputField.removeEventListener('keydown', keyDownHandler);
             inputField.removeEventListener('compositionstart', compositionStartHandler);
+            inputField.removeEventListener('compositionupdate', compositionUpdateHandler);
             inputField.removeEventListener('compositionend', compositionEndHandler);
 
             // 重新綁定監聽器
             inputField.addEventListener('input', inputHandler);
             inputField.addEventListener('keydown', keyDownHandler);
             inputField.addEventListener('compositionstart', compositionStartHandler);
+            inputField.addEventListener('compositionupdate', compositionUpdateHandler);
             inputField.addEventListener('compositionend', compositionEndHandler);
 
             inputListenersSetup = true;
@@ -623,6 +647,7 @@
             if (fcIndex === -1) return;
 
             fc.element.classList.add('hit');
+            fc.element.classList.remove('locked'); // 移除鎖定狀態
             
             const elapsedTime = (Date.now() - fc.startTime) / 1000;
             const speedBonus = Math.max(1, Math.floor(10 - elapsedTime * 0.5));
@@ -670,6 +695,33 @@
             }
         }
         
+        function updateTargetLocking(inputValue) {
+            // 更新所有字元的鎖定狀態
+            fallingCharacters.forEach(fc => {
+                if (!fc.element.parentNode) return;
+                
+                const isMatch = inputValue && (
+                    fc.englishKeys.toLowerCase().startsWith(inputValue.toLowerCase()) ||
+                    fc.bopomofo.startsWith(inputValue)
+                );
+                
+                if (isMatch) {
+                    fc.element.classList.add('locked');
+                } else {
+                    fc.element.classList.remove('locked');
+                }
+            });
+            
+            // 如果輸入為空，移除所有鎖定
+            if (!inputValue) {
+                fallingCharacters.forEach(fc => {
+                    if (fc.element.parentNode) {
+                        fc.element.classList.remove('locked');
+                    }
+                });
+            }
+        }
+        
         function endGame(reason = "遊戲結束") {
             if (!gameActive) return;
             gameActive = false;
@@ -681,10 +733,10 @@
             finalScoreElement.textContent = score;
             finalMissedElement.textContent = missedCount;
             
-            // 保存成績並計算排名
-            saveScore(completedCount, score, missedCount);
+            // 先計算排名，再保存成績
             const rankInfo = calculateRank(score);
-            displayRankInfo(rankInfo.rank, rankInfo.total, rankInfo.isNewRecord, rankInfo.highScore, score);
+            saveScore(completedCount, score, missedCount);
+            displayRankInfo(rankInfo.rank, rankInfo.isNewRecord, rankInfo.inTop10, rankInfo.highScore, score);
             
             // 顯示 TOP 10 排行榜
             displayTop10(score);
