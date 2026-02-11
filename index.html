@@ -30,19 +30,16 @@
             color: white;
         }
 
-        /* 背景星光動畫 - 垂直移動 */
+        /* 背景星光動畫 - 慢速巡航感 */
         .star {
             position: absolute;
             background: white;
             border-radius: 50%;
-            /* 預設起始位置在畫面外上方 */
             top: -10px;
-            /* 使用 CSS 變數控制個別差異 */
             width: var(--size);
             height: var(--size);
             opacity: var(--opacity);
             animation: warpSpeed var(--duration) linear infinite;
-            /* 增加發光感 */
             box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
         }
 
@@ -69,13 +66,13 @@
             width: 80px;
             height: 80px;
             /* 霓虹邊框風格 */
-            border-radius: 12px; /* 改成圓角矩形，更有科技感 */
+            border-radius: 12px;
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(2px);
             border: 2px solid var(--char-color);
             box-shadow: 0 0 8px var(--char-color), inset 0 0 10px rgba(0,0,0,0.5);
             font-weight: 700;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
             padding: 5px;
             text-align: center;
             z-index: 10;
@@ -85,33 +82,57 @@
         
         .falling-character span.sub-text {
             color: var(--char-color);
-            font-family: 'Orbitron', sans-serif; /* 英文按鍵用科幻字體 */
+            font-family: 'Orbitron', sans-serif;
             font-size: 0.75rem;
             letter-spacing: 1px;
+            white-space: nowrap;
         }
 
-        .falling-character.locked {
-            background: rgba(255, 0, 0, 0.2);
-            border-color: #ff0000;
-            box-shadow: 0 0 15px #ff0000, inset 0 0 10px #ff0000;
-            transform: scale(1.1);
-            z-index: 15;
+        .matched-highlight {
+            color: #fff;
+            text-shadow: 0 0 5px #fff, 0 0 10px #fff;
+            font-weight: 900;
         }
-        
-        .falling-character.locked::before {
+
+        /* --- 鎖定特效核心 --- */
+
+        /* 鎖定狀態通用: 產生虛線旋轉外框 */
+        .falling-character.locking::before {
             content: '';
             position: absolute;
-            inset: -4px;
-            border: 1px dashed #ff0000;
+            inset: -8px; /* 擴大範圍 */
+            border: 2px dashed var(--lock-color);
             border-radius: 16px;
-            animation: rotate-lock 2s linear infinite;
+            animation: rotate-lock var(--lock-speed) linear infinite;
+            z-index: -1;
+            pointer-events: none;
         }
 
         @keyframes rotate-lock {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
+
+        /* 階段 1: 黃色鎖定 (初期匹配) */
+        .falling-character.locking-stage-1 {
+            --lock-color: #ffe600; /* 黃色 */
+            --lock-speed: 4s;      /* 轉速較慢 */
+            border-color: #ffe600;
+            box-shadow: 0 0 15px rgba(255, 230, 0, 0.4);
+            transform: scale(1.05);
+        }
+
+        /* 階段 2: 紅色鎖定 (高度匹配 > 50%) */
+        .falling-character.locking-stage-2 {
+            --lock-color: #ff0000; /* 紅色 */
+            --lock-speed: 1.5s;    /* 轉速變快 */
+            border-color: #ff0000;
+            box-shadow: 0 0 25px rgba(255, 0, 0, 0.6), inset 0 0 10px rgba(255, 0, 0, 0.3);
+            transform: scale(1.15);
+            z-index: 20;
+        }
+
+        /* 擊中時的爆炸 */
         .explosion-effect {
             position: fixed;
             z-index: 20;
@@ -145,9 +166,8 @@
         .laser-beam {
             position: absolute;
             height: 6px;
-            background: white; /* 核心白光 */
+            background: white;
             transform-origin: 0 50%;
-            /* 多重陰影製造強力霓虹感 */
             box-shadow: 
                 0 0 5px #fff,
                 0 0 10px var(--neon-blue),
@@ -410,36 +430,20 @@
             for(let i=0; i<150; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
-                
-                // 隨機水平位置
                 star.style.left = Math.random() * 100 + '%';
-                
-                // 產生速度因子 (0~1)，1 代表越近越快，製造視差效果
                 const speedFactor = Math.random();
-                
-                // 設定大小：遠的小 (1px)，近的大 (3px)
                 const size = 1 + speedFactor * 2;
                 star.style.setProperty('--size', `${size}px`);
-                
-                // 設定透明度：遠的暗，近的亮
                 const opacity = 0.3 + speedFactor * 0.7;
                 star.style.setProperty('--opacity', opacity);
-                
-                // 設定動畫時間：越近越快，但整體放慢 (8s ~ 20s)
-                // speedFactor 1 (closest) -> duration ~ 8s
-                // speedFactor 0 (furthest) -> duration ~ 20s
                 const duration = 20 - (speedFactor * 12);
                 star.style.setProperty('--duration', `${duration}s`);
-                
-                // 設定隨機延遲 (負值)，讓星星一開始就布滿畫面
                 star.style.animationDelay = `-${Math.random() * 20}s`;
-                
                 container.appendChild(star);
             }
         }
         initStars();
 
-        // 霓虹配色盤
         const neonColors = [
             { color: '#00f3ff', name: 'blue' },
             { color: '#bc13fe', name: 'pink' },
@@ -689,6 +693,7 @@
             charElement.className = 'falling-character';
             charElement.style.setProperty('--char-color', neonStyle.color);
             
+            // 移除 lock-ring
             charElement.innerHTML = `
                 <span class="text-3xl filter drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]">${charData.char}</span>
                 <span class="sub-text mt-1">${charData.bopomofo} <span class="opacity-70">[${charData.englishKeys}]</span></span>
@@ -740,7 +745,6 @@
                         missedCountElement.textContent = `${missedCount}/${maxMisses}`;
                         updateHealthBar();
                         
-                        // 震動效果
                         gameContainer.classList.add('animate-pulse');
                         setTimeout(() => gameContainer.classList.remove('animate-pulse'), 200);
 
@@ -771,7 +775,6 @@
             charactersContainer.innerHTML = ''; 
             
             completedCountElement.textContent = completedCount;
-            // Pad score with zeros
             scoreElement.textContent = score.toString().padStart(6, '0');
             missedCountElement.textContent = `0/${maxMisses}`;
             updateHealthBar();
@@ -996,7 +999,9 @@
         function handleHitLogic(fc) {
             if (fc.isHit) return;
             fc.isHit = true;
-            fc.element.classList.remove('locked');
+            fc.element.classList.remove('locking'); // 清除鎖定
+            fc.element.classList.remove('locking-stage-1');
+            fc.element.classList.remove('locking-stage-2');
             fireLaser(fc);
         }
         
@@ -1012,29 +1017,66 @@
             }
         }
         
+        // 核心修正：多階段鎖定邏輯
         function updateTargetLocking(inputValue) {
             fallingCharacters.forEach(fc => {
                 if (!fc.element.parentNode || fc.isHit) return;
                 
-                const isMatch = inputValue && (
-                    fc.englishKeys.toLowerCase().startsWith(inputValue.toLowerCase()) ||
-                    fc.bopomofo.startsWith(inputValue)
-                );
+                let matchLength = 0;
+                let isEnglishMatch = false;
+                let isBopomofoMatch = false;
                 
-                if (isMatch) {
-                    fc.element.classList.add('locked');
+                if (inputValue) {
+                    const engKeys = fc.englishKeys.toLowerCase();
+                    const inputLower = inputValue.toLowerCase();
+                    
+                    if (engKeys.startsWith(inputLower)) {
+                        isEnglishMatch = true;
+                        matchLength = inputLower.length;
+                    } else if (fc.bopomofo.startsWith(inputValue)) {
+                        isBopomofoMatch = true;
+                        matchLength = inputValue.length;
+                    }
+                }
+
+                const subTextEl = fc.element.querySelector('.sub-text');
+                
+                // 重置所有鎖定狀態
+                fc.element.classList.remove('locking');
+                fc.element.classList.remove('locking-stage-1');
+                fc.element.classList.remove('locking-stage-2');
+
+                if (isEnglishMatch || isBopomofoMatch) {
+                    fc.element.classList.add('locking'); // 啟動基礎鎖定 CSS
+
+                    // 計算匹配比例
+                    const totalLength = isEnglishMatch ? fc.englishKeys.length : fc.bopomofo.length;
+                    const ratio = matchLength / totalLength;
+
+                    // 判斷鎖定階段
+                    if (ratio >= 0.5) {
+                        // 匹配超過 50% -> 紅色高速旋轉
+                        fc.element.classList.add('locking-stage-2');
+                    } else {
+                        // 匹配少於 50% -> 黃色正常旋轉
+                        fc.element.classList.add('locking-stage-1');
+                    }
+
+                    // 文字高亮
+                    if (isEnglishMatch) {
+                        const matchedPart = fc.englishKeys.substring(0, matchLength);
+                        const restPart = fc.englishKeys.substring(matchLength);
+                        subTextEl.innerHTML = `${fc.bopomofo} <span class="opacity-70">[<span class="matched-highlight">${matchedPart}</span>${restPart}]</span>`;
+                    } else {
+                        const matchedPart = fc.bopomofo.substring(0, matchLength);
+                        const restPart = fc.bopomofo.substring(matchLength);
+                        subTextEl.innerHTML = `<span class="matched-highlight">${matchedPart}</span>${restPart} <span class="opacity-70">[${fc.englishKeys}]</span>`;
+                    }
                 } else {
-                    fc.element.classList.remove('locked');
+                    // 無匹配
+                    subTextEl.innerHTML = `${fc.bopomofo} <span class="opacity-70">[${fc.englishKeys}]</span>`;
                 }
             });
-            
-            if (!inputValue) {
-                fallingCharacters.forEach(fc => {
-                    if (fc.element.parentNode) {
-                        fc.element.classList.remove('locked');
-                    }
-                });
-            }
         }
         
         function endGame(reason = "GAME OVER") {
