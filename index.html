@@ -137,9 +137,16 @@
                     <span>最終得分：</span>
                     <span id="final-score" class="font-bold text-yellow-400">0</span>
                 </div>
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
                     <span>遺漏次數：</span>
                     <span id="final-missed" class="font-bold text-red-400">0</span>
+                </div>
+                <div class="flex justify-between items-center bg-gradient-to-r from-purple-900 to-blue-900 p-3 rounded-lg mt-4">
+                    <span class="text-lg font-bold">🏆 排名：</span>
+                    <span id="rank-display" class="text-xl font-bold text-yellow-300">-</span>
+                </div>
+                <div id="high-score-display" class="text-center text-sm text-gray-400 mt-2">
+                    <!-- 歷史最高分顯示 -->
                 </div>
             </div>
             <div class="flex justify-center">
@@ -240,6 +247,8 @@
         const finalCompletedElement = document.getElementById('final-completed');
         const finalScoreElement = document.getElementById('final-score');
         const finalMissedElement = document.getElementById('final-missed');
+        const rankDisplayElement = document.getElementById('rank-display');
+        const highScoreDisplayElement = document.getElementById('high-score-display');
         const restartButton = document.getElementById('restart-button');
         
         startButton.addEventListener('click', startGame);
@@ -258,6 +267,75 @@
         function getCurrentMaxCharacters() {
             // 每完成20個字，同時掉落的字數增加1
             return Math.floor(completedCount / 20) + 1;
+        }
+
+        // 成績管理函數
+        function saveScore(completed, score, missed) {
+            const scoreData = {
+                completed: completed,
+                score: score,
+                missed: missed,
+                date: new Date().toISOString(),
+                timestamp: Date.now()
+            };
+            
+            // 從 localStorage 讀取歷史成績
+            let scores = getScores();
+            scores.push(scoreData);
+            
+            // 只保留最近 100 次成績
+            if (scores.length > 100) {
+                scores = scores.slice(-100);
+            }
+            
+            localStorage.setItem('typingGameScores', JSON.stringify(scores));
+            return scoreData;
+        }
+        
+        function getScores() {
+            const stored = localStorage.getItem('typingGameScores');
+            return stored ? JSON.parse(stored) : [];
+        }
+        
+        function calculateRank(currentScore) {
+            const scores = getScores();
+            if (scores.length === 0) {
+                return { rank: 1, total: 1, isNewRecord: true };
+            }
+            
+            // 按分數排序（降序）
+            const sortedScores = [...scores].sort((a, b) => b.score - a.score);
+            
+            // 找到當前分數的排名
+            let rank = 1;
+            for (let i = 0; i < sortedScores.length; i++) {
+                if (currentScore >= sortedScores[i].score) {
+                    rank = i + 1;
+                    break;
+                }
+                if (i === sortedScores.length - 1) {
+                    rank = sortedScores.length + 1;
+                }
+            }
+            
+            const isNewRecord = rank === 1 && scores.length > 0;
+            return { rank: rank, total: scores.length + 1, isNewRecord: isNewRecord, highScore: sortedScores[0].score };
+        }
+        
+        function displayRankInfo(rank, total, isNewRecord, highScore, currentScore) {
+            // 顯示排名
+            const rankText = `第 ${rank} 名 / 共 ${total} 次`;
+            rankDisplayElement.textContent = rankText;
+            
+            // 顯示額外信息
+            if (isNewRecord) {
+                highScoreDisplayElement.innerHTML = '<span class="text-yellow-400 font-bold">🎉 恭喜！創造新紀錄！</span>';
+            } else if (rank === 1 && total === 1) {
+                highScoreDisplayElement.innerHTML = '<span class="text-cyan-400">這是你的第一次遊戲！</span>';
+            } else {
+                const difference = highScore - currentScore;
+                highScoreDisplayElement.innerHTML = `<span class="text-gray-400">歷史最高分：${highScore} 分</span><br><span class="text-sm text-gray-500">距離最高分還差 ${difference} 分</span>`;
+            }
         }
 
         function spawnNewCharacter() {
@@ -512,6 +590,11 @@
             finalCompletedElement.textContent = completedCount; 
             finalScoreElement.textContent = score;
             finalMissedElement.textContent = missedCount;
+            
+            // 保存成績並計算排名
+            saveScore(completedCount, score, missedCount);
+            const rankInfo = calculateRank(score);
+            displayRankInfo(rankInfo.rank, rankInfo.total, rankInfo.isNewRecord, rankInfo.highScore, score);
             
             charactersContainer.innerHTML = '';
             fallingCharacters = [];
