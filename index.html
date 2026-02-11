@@ -86,6 +86,25 @@
                 height: 65px;
             }
         }
+        
+        /* 滾動條樣式 */
+        #top10-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #top10-list::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+        
+        #top10-list::-webkit-scrollbar-thumb {
+            background: rgba(72, 219, 251, 0.5);
+            border-radius: 3px;
+        }
+        
+        #top10-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(72, 219, 251, 0.8);
+        }
     </style>
 </head>
 <body class="text-white">
@@ -147,6 +166,14 @@
                 </div>
                 <div id="high-score-display" class="text-center text-sm text-gray-400 mt-2">
                     <!-- 歷史最高分顯示 -->
+                </div>
+            </div>
+            
+            <!-- TOP 10 排行榜 -->
+            <div class="mb-6 bg-gray-900 bg-opacity-50 rounded-lg p-4">
+                <h3 class="text-lg font-bold text-center mb-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">🏆 TOP 10 排行榜</h3>
+                <div id="top10-list" class="space-y-2 text-sm max-h-64 overflow-y-auto">
+                    <!-- TOP 10 列表將動態生成 -->
                 </div>
             </div>
             <div class="flex justify-center">
@@ -249,6 +276,7 @@
         const finalMissedElement = document.getElementById('final-missed');
         const rankDisplayElement = document.getElementById('rank-display');
         const highScoreDisplayElement = document.getElementById('high-score-display');
+        const top10ListElement = document.getElementById('top10-list');
         const restartButton = document.getElementById('restart-button');
         
         startButton.addEventListener('click', startGame);
@@ -335,6 +363,68 @@
             } else {
                 const difference = highScore - currentScore;
                 highScoreDisplayElement.innerHTML = `<span class="text-gray-400">歷史最高分：${highScore} 分</span><br><span class="text-sm text-gray-500">距離最高分還差 ${difference} 分</span>`;
+            }
+        }
+        
+        function getTop10Scores() {
+            const scores = getScores();
+            // 按分數排序（降序），取前 10 名
+            return [...scores].sort((a, b) => b.score - a.score).slice(0, 10);
+        }
+        
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${month}/${day} ${hours}:${minutes}`;
+        }
+        
+        function displayTop10(currentScore) {
+            const top10 = getTop10Scores();
+            
+            if (top10.length === 0) {
+                top10ListElement.innerHTML = '<p class="text-center text-gray-400">還沒有歷史記錄</p>';
+                return;
+            }
+            
+            let html = '';
+            top10.forEach((scoreData, index) => {
+                const rank = index + 1;
+                const isCurrentScore = Math.abs(scoreData.timestamp - Date.now()) < 1000; // 1秒內的記錄視為當前成績
+                const bgClass = isCurrentScore ? 'bg-gradient-to-r from-yellow-900 to-orange-900 border border-yellow-500' : 'bg-gray-800 bg-opacity-50';
+                const medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+                
+                html += `
+                    <div class="${bgClass} p-2 rounded flex justify-between items-center">
+                        <div class="flex items-center gap-2 flex-1">
+                            <span class="font-bold ${rank <= 3 ? 'text-lg' : ''}">${medalEmoji}</span>
+                            <div class="flex-1">
+                                <div class="flex justify-between">
+                                    <span class="font-bold text-yellow-400">${scoreData.score} 分</span>
+                                    <span class="text-xs text-gray-400">${formatDate(scoreData.date)}</span>
+                                </div>
+                                <div class="text-xs text-gray-300">
+                                    完成 ${scoreData.completed} 字 | 遺漏 ${scoreData.missed} 次
+                                </div>
+                            </div>
+                        </div>
+                        ${isCurrentScore ? '<span class="text-yellow-400 text-xs ml-2">← 本次</span>' : ''}
+                    </div>
+                `;
+            });
+            
+            top10ListElement.innerHTML = html;
+            
+            // 顯示與第10名的差距（如果不在TOP 10內）
+            if (top10.length === 10) {
+                const top10Score = top10[9].score;
+                if (currentScore < top10Score) {
+                    const difference = top10Score - currentScore;
+                    const extraInfo = `<p class="text-center text-xs text-gray-400 mt-2">距離 TOP 10 還差 ${difference} 分</p>`;
+                    top10ListElement.innerHTML += extraInfo;
+                }
             }
         }
 
@@ -595,6 +685,9 @@
             saveScore(completedCount, score, missedCount);
             const rankInfo = calculateRank(score);
             displayRankInfo(rankInfo.rank, rankInfo.total, rankInfo.isNewRecord, rankInfo.highScore, score);
+            
+            // 顯示 TOP 10 排行榜
+            displayTop10(score);
             
             charactersContainer.innerHTML = '';
             fallingCharacters = [];
