@@ -1,21 +1,62 @@
 <html lang="zh-TW"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中文注音打字遊戲 - 射擊版</title>
+    <title>霓虹注音射擊 - Cyberpunk Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Orbitron:wght@400;700&display=swap');
         
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #bc13fe;
+            --neon-green: #0aff0a;
+            --neon-yellow: #ffe600;
+            --bg-dark: #050510;
+        }
+
         body {
             font-family: 'Noto Sans TC', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background-color: var(--bg-dark);
+            /* 復古網格背景 */
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(188, 19, 254, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
             overflow: hidden;
             height: 100vh;
             margin: 0;
             padding: 0;
+            color: white;
+        }
+
+        /* 背景星光動畫 - 垂直移動 */
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            /* 預設起始位置在畫面外上方 */
+            top: -10px;
+            /* 使用 CSS 變數控制個別差異 */
+            width: var(--size);
+            height: var(--size);
+            opacity: var(--opacity);
+            animation: warpSpeed var(--duration) linear infinite;
+            /* 增加發光感 */
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+        }
+
+        @keyframes warpSpeed {
+            from { transform: translateY(-20px); }
+            to { transform: translateY(110vh); }
         }
         
+        /* 霓虹文字通用樣式 */
+        .neon-text-blue { text-shadow: 0 0 5px var(--neon-blue), 0 0 10px var(--neon-blue); color: var(--neon-blue); }
+        .neon-text-pink { text-shadow: 0 0 5px var(--neon-pink), 0 0 10px var(--neon-pink); color: var(--neon-pink); }
+        .neon-text-green { text-shadow: 0 0 5px var(--neon-green), 0 0 10px var(--neon-green); color: var(--neon-green); }
+        .neon-text-yellow { text-shadow: 0 0 5px var(--neon-yellow), 0 0 10px var(--neon-yellow); color: var(--neon-yellow); }
+
         .falling-character {
             position: absolute;
             animation-timing-function: linear;
@@ -27,27 +68,52 @@
             justify-content: center;
             width: 80px;
             height: 80px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(5px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            /* 霓虹邊框風格 */
+            border-radius: 12px; /* 改成圓角矩形，更有科技感 */
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+            border: 2px solid var(--char-color);
+            box-shadow: 0 0 8px var(--char-color), inset 0 0 10px rgba(0,0,0,0.5);
             font-weight: 700;
-            transition: transform 0.2s, background 0.3s, box-shadow 0.3s;
+            transition: transform 0.2s;
             padding: 5px;
             text-align: center;
             z-index: 10;
+            color: white;
+            text-shadow: 0 0 5px var(--char-color);
         }
         
+        .falling-character span.sub-text {
+            color: var(--char-color);
+            font-family: 'Orbitron', sans-serif; /* 英文按鍵用科幻字體 */
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+        }
+
         .falling-character.locked {
-            background: rgba(52, 211, 153, 0.3);
-            box-shadow: 0 0 20px rgba(52, 211, 153, 0.6), 0 0 40px rgba(52, 211, 153, 0.4);
-            border: 2px solid rgba(52, 211, 153, 0.8);
+            background: rgba(255, 0, 0, 0.2);
+            border-color: #ff0000;
+            box-shadow: 0 0 15px #ff0000, inset 0 0 10px #ff0000;
             transform: scale(1.1);
+            z-index: 15;
         }
         
-        /* 獨立的爆炸效果類別 */
+        .falling-character.locked::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border: 1px dashed #ff0000;
+            border-radius: 16px;
+            animation: rotate-lock 2s linear infinite;
+        }
+
+        @keyframes rotate-lock {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         .explosion-effect {
-            position: fixed; /* 使用 fixed 定位確保座標精準 */
+            position: fixed;
             z-index: 20;
             display: flex;
             flex-direction: column;
@@ -55,62 +121,79 @@
             justify-content: center;
             width: 80px;
             height: 80px;
-            border-radius: 50%;
+            border-radius: 12px;
             font-weight: 700;
             padding: 5px;
             text-align: center;
             user-select: none;
-            /* 爆炸動畫 */
-            animation: explode 0.4s ease-out forwards;
+            background: var(--char-color);
+            box-shadow: 0 0 20px var(--char-color);
+            animation: cyber-explode 0.5s ease-out forwards;
         }
 
-        @keyframes explode {
-            0% { transform: scale(1); opacity: 1; background: rgba(255, 255, 255, 0.8); }
-            50% { transform: scale(1.5); opacity: 0.8; background: rgba(72, 219, 251, 1); box-shadow: 0 0 50px rgba(72, 219, 251, 0.8); }
-            100% { transform: scale(2); opacity: 0; }
+        @keyframes cyber-explode {
+            0% { transform: scale(1); opacity: 1; filter: brightness(2); }
+            40% { transform: scale(1.4); opacity: 0.8; filter: brightness(1.5); }
+            100% { transform: scale(0); opacity: 0; filter: brightness(0); }
         }
         
         @keyframes fall {
-            from { transform: translateY(-80px); }
-            to { transform: translateY(100vh); }
+            from { transform: translateY(-100px); }
+            to { transform: translateY(110vh); }
         }
         
-        /* 雷射光束樣式 */
         .laser-beam {
             position: absolute;
-            height: 4px; /* 雷射粗細 */
-            background: linear-gradient(90deg, rgba(255,255,255,0.8), #00ffff, rgba(0,255,255,0));
-            transform-origin: 0 50%; /* 從左側旋轉 */
-            box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+            height: 6px;
+            background: white; /* 核心白光 */
+            transform-origin: 0 50%;
+            /* 多重陰影製造強力霓虹感 */
+            box-shadow: 
+                0 0 5px #fff,
+                0 0 10px var(--neon-blue),
+                0 0 20px var(--neon-blue),
+                0 0 30px var(--neon-blue);
             z-index: 5;
             pointer-events: none;
             opacity: 0;
-            border-radius: 2px;
+            border-radius: 3px;
+            mix-blend-mode: screen;
         }
 
-        /* 砲塔樣式 */
         .turret-container {
             position: absolute;
-            bottom: 85px; /* 在輸入框上方 */
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 20;
             pointer-events: none;
         }
         
-        .turret-icon {
-            font-size: 3rem;
-            color: #4fd1c5;
-            text-shadow: 0 0 15px rgba(79, 209, 197, 0.6);
-            filter: drop-shadow(0 0 5px rgba(0,0,0,0.5));
-            /* 增加平滑轉向過渡 */
-            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            display: block; /* 確保 transform 正常運作 */
+        .turret-base {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #333 30%, transparent 70%);
+            border: 2px solid var(--neon-blue);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--neon-blue), inset 0 0 10px var(--neon-blue);
+            z-index: 19;
         }
 
-        /* 砲塔發射時的後座力動畫 */
+        .turret-icon {
+            font-size: 3.5rem;
+            color: white;
+            filter: drop-shadow(0 0 5px var(--neon-blue)) drop-shadow(0 0 15px var(--neon-blue));
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: block;
+        }
+
         .turret-fire {
             animation: recoil 0.1s ease-in-out;
+            filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 20px var(--neon-blue));
         }
 
         @keyframes recoil {
@@ -119,122 +202,254 @@
             100% { transform: translateY(0); }
         }
         
+        /* HUD 樣式 */
+        .hud-panel {
+            background: rgba(10, 10, 30, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%);
+        }
+
+        .hud-border-blue { border-left: 3px solid var(--neon-blue); }
+        .hud-border-pink { border-left: 3px solid var(--neon-pink); }
+        .hud-border-red { border-left: 3px solid #ff3333; }
+
         .input-area {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.1);
-            border-top: 2px solid rgba(255, 255, 255, 0.2); 
+            background: transparent;
             z-index: 30;
         }
         
         #input-field {
+            background: rgba(5, 5, 16, 0.9);
+            border: 2px solid var(--neon-blue);
             color: white;
-            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-            caret-color: #4fd1c5;
+            font-family: 'Orbitron', 'Noto Sans TC', sans-serif;
+            text-shadow: 0 0 5px var(--neon-blue);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3), inset 0 0 10px rgba(0, 243, 255, 0.1);
+            letter-spacing: 1px;
+            transition: all 0.3s;
+        }
+        
+        #input-field:focus {
+            outline: none;
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.5), inset 0 0 15px rgba(0, 243, 255, 0.2);
+            border-color: #fff;
         }
         
         #input-field::placeholder {
-            color: rgba(255, 255, 255, 0.6);
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.9em;
         }
-        
-        .game-over-overlay {
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(5px);
+
+        /* 按鈕樣式 */
+        .cyber-btn {
+            background: transparent;
+            color: var(--neon-blue);
+            border: 2px solid var(--neon-blue);
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+            transition: 0.3s;
+            box-shadow: 0 0 10px var(--neon-blue);
+            clip-path: polygon(10% 0, 100% 0, 100% 80%, 90% 100%, 0 100%, 0 20%);
+        }
+
+        .cyber-btn:hover {
+            background: var(--neon-blue);
+            color: black;
+            box-shadow: 0 0 30px var(--neon-blue);
+            transform: scale(1.05);
+        }
+
+        /* 分數飄浮動畫 */
+        @keyframes floatPoints {
+            0% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+            50% { opacity: 0.8; transform: translateY(-30px) scale(1.2); filter: blur(1px); }
+            100% { opacity: 0; transform: translateY(-60px) scale(1.5); filter: blur(4px); }
         }
 
         @media (max-width: 768px) { 
             .falling-character { width: 70px; height: 70px; }
             .explosion-effect { width: 70px; height: 70px; }
-            .turret-container { bottom: 75px; }
-            .turret-icon { font-size: 2.5rem; }
-        }
-
-        @media (max-width: 640px) { 
-            .falling-character { width: 65px; height: 65px; }
-            .explosion-effect { width: 65px; height: 65px; }
-            .turret-container { bottom: 70px; }
+            .turret-container { bottom: 90px; }
+            .turret-icon { font-size: 2.8rem; }
+            .turret-base { width: 50px; height: 50px; bottom: -15px; }
         }
     </style>
 </head>
-<body class="text-white">
+<body>
+    <!-- 背景星星 -->
+    <div id="stars-container"></div>
+
     <!-- 開始畫面 -->
-    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-center z-50 bg-gradient-to-br from-indigo-900 to-purple-900 p-4">
-        <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold mb-8 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">中文注音射擊遊戲</h1>
-        <p class="text-lg sm:text-xl mb-8 text-center max-w-md px-4">輸入正確的注音符號或按鍵，啟動雷射砲塔消滅目標！<br><span class="text-sm text-gray-300 mt-2 block">(支援標準注音輸入法與盲打按鍵)</span></p>
-        <button id="start-button" class="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-lg sm:text-xl font-bold rounded-full hover:from-blue-600 hover:to-cyan-600 transition-all transform hover:scale-105 shadow-lg">開始任務</button>
+    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-center z-50 bg-black bg-opacity-90 p-4">
+        <div class="border border-cyan-500 p-8 rounded-lg shadow-[0_0_50px_rgba(0,243,255,0.3)] bg-gray-900 bg-opacity-80 max-w-2xl w-full text-center relative overflow-hidden">
+            <!-- 裝飾線條 -->
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent"></div>
+            <div class="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent"></div>
+            
+            <h1 class="text-5xl md:text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-purple-500 neon-text-blue tracking-wider" style="font-family: 'Orbitron', sans-serif;">TYPE<br><span class="text-4xl md:text-6xl font-serif">注音特攻</span></h1>
+            
+            <div class="flex justify-center gap-4 mb-8 text-cyan-200">
+                <div class="border border-cyan-500/30 px-4 py-2 rounded bg-black/50">
+                    <i class="fas fa-keyboard mr-2"></i>注音輸入
+                </div>
+                <div class="border border-purple-500/30 px-4 py-2 rounded bg-black/50">
+                    <i class="fas fa-bullseye mr-2"></i>自動鎖定
+                </div>
+            </div>
+
+            <p class="text-lg md:text-xl mb-8 text-gray-300 font-light">
+                系統偵測到大量未知訊號入侵。<br>
+                啟動防禦矩陣，準備攔截。
+            </p>
+            
+            <button id="start-button" class="cyber-btn px-10 py-4 text-xl font-bold">INITIATE_SYSTEM</button>
+        </div>
     </div>
 
     <!-- 遊戲畫面 -->
     <div id="game-container" class="hidden h-screen w-full relative">
-        <!-- 狀態欄 -->
-        <div class="fixed top-0 left-0 right-0 p-2 sm:p-4 flex flex-wrap justify-around items-center gap-2 sm:gap-4 bg-black bg-opacity-30 backdrop-blur-sm z-40">
-            <div class="bg-blue-900 bg-opacity-50 px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base">
-                <span class="font-medium">擊落數: </span>
-                <span id="completed-count" class="text-base sm:text-lg font-bold text-cyan-400">0</span>
+        <!-- HUD 狀態欄 -->
+        <div class="fixed top-0 left-0 right-0 p-2 sm:p-4 flex flex-wrap justify-between items-start gap-2 z-40 pointer-events-none px-4 md:px-10">
+            <!-- 左上：分數 -->
+            <div class="hud-panel hud-border-blue px-6 py-2 rounded-br-2xl">
+                <div class="text-xs text-cyan-300 tracking-widest uppercase mb-1">Score</div>
+                <span id="score" class="text-2xl font-bold text-white font-mono neon-text-blue">000000</span>
             </div>
-            <div class="bg-purple-900 bg-opacity-50 px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base">
-                <span class="font-medium">分數: </span>
-                <span id="score" class="text-base sm:text-lg font-bold text-yellow-400">0</span>
+
+            <!-- 中間：擊落數 -->
+            <div class="hud-panel hud-border-pink px-6 py-2 rounded-b-xl">
+                <div class="text-xs text-purple-300 tracking-widest uppercase mb-1 text-center">Targets Neutralized</div>
+                <div class="text-center">
+                    <span id="completed-count" class="text-2xl font-bold text-white font-mono neon-text-pink">0</span>
+                </div>
             </div>
-            <div class="bg-red-900 bg-opacity-50 px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base">
-                <span class="font-medium">入侵: </span>
-                <span id="missed-count" class="text-base sm:text-lg font-bold text-red-400">0</span>
-                <span class="font-medium"> / 5</span>
-            </div>
-            <div class="bg-gray-700 bg-opacity-50 px-2 py-1 sm:px-3 sm:py-1 rounded-lg text-xs sm:text-sm text-gray-300">
-                <span class="hidden sm:inline">輸入 </span>quit<span class="hidden sm:inline"> 結束</span>
+
+            <!-- 右上：生命值/入侵 -->
+            <div class="hud-panel hud-border-red px-6 py-2 rounded-bl-2xl">
+                <div class="text-xs text-red-300 tracking-widest uppercase mb-1 text-right">System Integrity</div>
+                <div class="flex items-center justify-end gap-2">
+                    <div class="w-24 h-2 bg-gray-700 rounded overflow-hidden">
+                        <div id="health-bar" class="h-full bg-red-500 shadow-[0_0_10px_red]" style="width: 100%;"></div>
+                    </div>
+                    <span id="missed-count" class="text-xl font-bold text-red-500 font-mono">0/5</span>
+                </div>
             </div>
         </div>
         
         <div id="characters-container" class="w-full h-full"></div>
         
         <!-- 砲塔 -->
+        <div class="turret-base"></div>
         <div id="turret" class="turret-container">
-            <!-- 初始狀態設定為 -rotate-45，使其指向正上方 -->
             <i class="fas fa-rocket turret-icon transform -rotate-45"></i>
         </div>
 
-        <div class="fixed bottom-0 left-0 right-0 p-2 sm:p-4 input-area">
-            <div class="relative">
-                <input type="text" id="input-field" class="w-full px-4 py-3 sm:px-6 sm:py-4 text-lg sm:text-xl bg-gray-800 bg-opacity-70 border-2 border-cyan-500 rounded-full text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-400" placeholder="鎖定目標，輸入注音開火..." autocomplete="off">
+        <div class="fixed bottom-0 left-0 right-0 p-4 pb-6 input-area flex justify-center">
+            <div class="relative w-full max-w-2xl">
+                <input type="text" id="input-field" class="w-full px-6 py-4 text-xl rounded-lg text-center" placeholder="AWAITING COMMAND [ 輸入注音 ]" autocomplete="off">
+                <div class="absolute right-4 top-1/2 transform -translate-y-1/2 text-cyan-500 opacity-50 text-xs hidden sm:block">
+                    CMD: TYPE TO FIRE
+                </div>
+            </div>
+            
+            <div class="absolute bottom-4 right-4 text-xs text-gray-500 font-mono hidden md:block">
+                INPUT: <span class="text-cyan-400">READY</span> | TURRET: <span class="text-cyan-400">ONLINE</span>
             </div>
         </div>
     </div>
     
-    <div id="game-over" class="hidden fixed inset-0 flex flex-col items-center justify-center game-over-overlay z-50 p-4">
-        <div class="bg-gradient-to-br from-gray-900 to-blue-900 p-6 sm:p-8 rounded-2xl max-w-md w-full border border-blue-500 shadow-2xl">
-            <h2 id="game-over-title" class="text-2xl sm:text-3xl font-bold mb-4 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">任務結束</h2>
-            <div class="space-y-3 sm:space-y-4 mb-6 text-base sm:text-lg">
-                <p class="text-lg sm:text-xl text-center">戰果報告：</p>
-                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-                    <span>擊落目標：</span>
-                    <span id="final-completed" class="font-bold text-cyan-400">0</span>
-                </div>
-                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-                    <span>最終得分：</span>
-                    <span id="final-score" class="font-bold text-yellow-400">0</span>
-                </div>
-                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-                    <span>入侵次數：</span>
-                    <span id="final-missed" class="font-bold text-red-400">0</span>
-                </div>
-                <div class="flex justify-between items-center bg-gradient-to-r from-purple-900 to-blue-900 p-3 rounded-lg mt-4">
-                    <span class="text-lg font-bold">🏆 排名：</span>
-                    <span id="rank-display" class="text-xl font-bold text-yellow-300">-</span>
-                </div>
-                <div id="high-score-display" class="text-center text-sm text-gray-400 mt-2"></div>
-            </div>
+    <!-- 遊戲結束 -->
+    <div id="game-over" class="hidden fixed inset-0 flex flex-col items-center justify-center z-50 bg-black bg-opacity-90 p-4 backdrop-blur-sm">
+        <div class="bg-gray-900 border-2 border-red-500 p-1 rounded-2xl shadow-[0_0_100px_rgba(255,0,0,0.4)] max-w-md w-full relative">
+            <div class="absolute -top-3 -left-3 w-6 h-6 border-t-4 border-l-4 border-red-500"></div>
+            <div class="absolute -bottom-3 -right-3 w-6 h-6 border-b-4 border-r-4 border-red-500"></div>
             
-            <div class="mb-6 bg-gray-900 bg-opacity-50 rounded-lg p-4">
-                <h3 class="text-lg font-bold text-center mb-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">🏆 王牌飛行員</h3>
-                <div id="top10-list" class="space-y-2 text-sm"></div>
-            </div>
-            <div class="flex justify-center">
-                <button id="restart-button" class="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-base sm:text-lg font-bold rounded-full hover:from-blue-600 hover:to-cyan-600 transition-all transform hover:scale-105 shadow-lg">再次出擊</button>
+            <div class="p-6 md:p-8 rounded-xl bg-gradient-to-b from-gray-900 to-black">
+                <h2 id="game-over-title" class="text-3xl md:text-4xl font-bold mb-6 text-center text-red-500 neon-text-red tracking-widest uppercase" style="font-family: 'Orbitron', sans-serif;">Mission Failed</h2>
+                
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
+                        <div class="text-xs text-gray-400 uppercase">Final Score</div>
+                        <div id="final-score" class="text-xl font-bold text-yellow-400 font-mono">0</div>
+                    </div>
+                    <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
+                        <div class="text-xs text-gray-400 uppercase">Targets</div>
+                        <div id="final-completed" class="text-xl font-bold text-cyan-400 font-mono">0</div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg mb-6 text-center">
+                    <div class="text-sm text-blue-300 mb-1">RANKING</div>
+                    <div id="rank-display" class="text-2xl font-bold text-white neon-text-blue">-</div>
+                    <div id="high-score-display" class="text-xs text-gray-400 mt-2"></div>
+                </div>
+                
+                <div class="mb-8">
+                    <h3 class="text-sm font-bold text-gray-500 mb-2 uppercase tracking-wide border-b border-gray-800 pb-1">Leaderboard</h3>
+                    <div id="top10-list" class="space-y-1 text-xs max-h-32 overflow-y-auto custom-scrollbar"></div>
+                </div>
+                
+                <div class="flex justify-center">
+                    <button id="restart-button" class="cyber-btn px-8 py-3 text-lg font-bold w-full">REBOOT_SYSTEM</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+        // ----------------------------------------------------
+        // 視覺特效初始化
+        // ----------------------------------------------------
+        function initStars() {
+            const container = document.getElementById('stars-container');
+            // 增加星星數量以強化速度感
+            for(let i=0; i<150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                
+                // 隨機水平位置
+                star.style.left = Math.random() * 100 + '%';
+                
+                // 產生速度因子 (0~1)，1 代表越近越快，製造視差效果
+                const speedFactor = Math.random();
+                
+                // 設定大小：遠的小 (1px)，近的大 (3px)
+                const size = 1 + speedFactor * 2;
+                star.style.setProperty('--size', `${size}px`);
+                
+                // 設定透明度：遠的暗，近的亮
+                const opacity = 0.3 + speedFactor * 0.7;
+                star.style.setProperty('--opacity', opacity);
+                
+                // 設定動畫時間：越近越快，但整體放慢 (8s ~ 20s)
+                // speedFactor 1 (closest) -> duration ~ 8s
+                // speedFactor 0 (furthest) -> duration ~ 20s
+                const duration = 20 - (speedFactor * 12);
+                star.style.setProperty('--duration', `${duration}s`);
+                
+                // 設定隨機延遲 (負值)，讓星星一開始就布滿畫面
+                star.style.animationDelay = `-${Math.random() * 20}s`;
+                
+                container.appendChild(star);
+            }
+        }
+        initStars();
+
+        // 霓虹配色盤
+        const neonColors = [
+            { color: '#00f3ff', name: 'blue' },
+            { color: '#bc13fe', name: 'pink' },
+            { color: '#0aff0a', name: 'green' },
+            { color: '#ffe600', name: 'yellow' }
+        ];
+
+        // ----------------------------------------------------
+        // 遊戲邏輯
+        // ----------------------------------------------------
         const bopomofoKeyMap = {
             'ㄅ': '1', 'ㄆ': 'q', 'ㄇ': 'a', 'ㄈ': 'z', 'ㄉ': '2', 'ㄊ': 'w', 'ㄋ': 's', 'ㄌ': 'x',
             'ㄍ': 'e', 'ㄎ': 'd', 'ㄏ': 'c', 'ㄐ': 'r', 'ㄑ': 'f', 'ㄒ': 'v', 'ㄓ': '5', 'ㄔ': 't',
@@ -311,6 +526,7 @@
         let missedCount = 0; 
         let maxMisses = 5;
         let isComposing = false;
+        let turretResetTimeout;
         
         const startScreen = document.getElementById('start-screen');
         const startButton = document.getElementById('start-button');
@@ -320,11 +536,11 @@
         const completedCountElement = document.getElementById('completed-count');
         const scoreElement = document.getElementById('score');
         const missedCountElement = document.getElementById('missed-count');
+        const healthBar = document.getElementById('health-bar');
         const gameOverScreen = document.getElementById('game-over');
         const gameOverTitle = document.getElementById('game-over-title');
         const finalCompletedElement = document.getElementById('final-completed');
         const finalScoreElement = document.getElementById('final-score');
-        const finalMissedElement = document.getElementById('final-missed');
         const rankDisplayElement = document.getElementById('rank-display');
         const highScoreDisplayElement = document.getElementById('high-score-display');
         const top10ListElement = document.getElementById('top10-list');
@@ -389,23 +605,25 @@
         
         function displayRankInfo(rank, isNewRecord, inTop10, highScore, currentScore) {
             if (inTop10) {
-                rankDisplayElement.textContent = `第 ${rank} 名`;
+                rankDisplayElement.textContent = `RANK #${rank}`;
+                rankDisplayElement.className = 'text-2xl font-bold font-mono neon-text-blue';
             } else {
-                rankDisplayElement.textContent = '未上榜';
+                rankDisplayElement.textContent = 'UNRANKED';
+                rankDisplayElement.className = 'text-2xl font-bold font-mono text-gray-500';
             }
             
             if (rank === 1 && !highScore) {
-                highScoreDisplayElement.innerHTML = '<span class="text-cyan-400">王牌飛行員誕生！</span>';
+                highScoreDisplayElement.innerHTML = '<span class="text-cyan-400">NEW ACE PILOT ESTABLISHED</span>';
             } else if (isNewRecord) {
-                highScoreDisplayElement.innerHTML = '<span class="text-yellow-400 font-bold">🎉 恭喜！創造新紀錄！</span>';
+                highScoreDisplayElement.innerHTML = '<span class="text-yellow-400 font-bold">NEW HIGH SCORE RECORDED</span>';
             } else if (inTop10) {
                 const difference = highScore - currentScore;
-                highScoreDisplayElement.innerHTML = `<span class="text-gray-400">最高分：${highScore} 分</span><br><span class="text-sm text-gray-500">距離最高分還差 ${difference} 分</span>`;
+                highScoreDisplayElement.innerHTML = `<span class="text-gray-400">HIGH SCORE: ${highScore}</span><br><span class="text-sm text-gray-500">-${difference} TO LEAD</span>`;
             } else {
                 const scores = getScores();
                 const lowestTop10Score = scores[Math.min(9, scores.length - 1)]?.score || 0;
                 const difference = lowestTop10Score - currentScore + 1;
-                highScoreDisplayElement.innerHTML = `<span class="text-gray-400">繼續加油！</span><br><span class="text-sm text-gray-500">距離 TOP 10 還差 ${difference} 分</span>`;
+                highScoreDisplayElement.innerHTML = `<span class="text-gray-400">TARGET ACQUIRED</span><br><span class="text-sm text-gray-500">-${difference} TO RANK</span>`;
             }
         }
         
@@ -414,15 +632,10 @@
             return [...scores].sort((a, b) => b.score - a.score).slice(0, 10);
         }
         
-        function formatDate(isoString) {
-            const date = new Date(isoString);
-            return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-        }
-        
         function displayTop10(currentScore) {
             const top10 = getTop10Scores();
             if (top10.length === 0) {
-                top10ListElement.innerHTML = '<p class="text-center text-gray-400">暫無飛行紀錄</p>';
+                top10ListElement.innerHTML = '<p class="text-center text-gray-500">NO DATA FOUND</p>';
                 return;
             }
             
@@ -430,28 +643,34 @@
             top10.forEach((scoreData, index) => {
                 const rank = index + 1;
                 const isCurrentScore = Math.abs(scoreData.timestamp - Date.now()) < 1000;
-                const bgClass = isCurrentScore ? 'bg-gradient-to-r from-yellow-900 to-orange-900 border border-yellow-500' : 'bg-gray-800 bg-opacity-50';
-                const medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+                const bgClass = isCurrentScore ? 'bg-cyan-900/50 border border-cyan-500' : 'bg-gray-800/30 border border-gray-700';
+                const textClass = isCurrentScore ? 'text-white' : 'text-gray-400';
                 
                 html += `
-                    <div class="${bgClass} p-2 rounded flex justify-between items-center">
+                    <div class="${bgClass} p-2 rounded flex justify-between items-center transition hover:bg-gray-700/50">
                         <div class="flex items-center gap-2 flex-1">
-                            <span class="font-bold ${rank <= 3 ? 'text-lg' : ''}">${medalEmoji}</span>
+                            <span class="font-bold font-mono w-6 ${rank <= 3 ? 'text-yellow-400' : 'text-gray-500'}">#${rank}</span>
                             <div class="flex-1">
                                 <div class="flex justify-between">
-                                    <span class="font-bold text-yellow-400">${scoreData.score} 分</span>
-                                    <span class="text-xs text-gray-400">${formatDate(scoreData.date)}</span>
-                                </div>
-                                <div class="text-xs text-gray-300">
-                                    擊落 ${scoreData.completed} | 入侵 ${scoreData.missed}
+                                    <span class="font-bold text-cyan-300 font-mono">${scoreData.score.toString().padStart(6, '0')}</span>
+                                    <span class="text-[10px] text-gray-500">${new Date(scoreData.date).toLocaleDateString()}</span>
                                 </div>
                             </div>
                         </div>
-                        ${isCurrentScore ? '<span class="text-yellow-400 text-xs ml-2">← 本次</span>' : ''}
                     </div>
                 `;
             });
             top10ListElement.innerHTML = html;
+        }
+
+        function updateHealthBar() {
+            const percentage = ((maxMisses - missedCount) / maxMisses) * 100;
+            healthBar.style.width = `${Math.max(0, percentage)}%`;
+            if (percentage < 30) {
+                healthBar.className = "h-full bg-red-600 shadow-[0_0_15px_red] animate-pulse";
+            } else {
+                healthBar.className = "h-full bg-green-500 shadow-[0_0_10px_lime]";
+            }
         }
 
         function spawnNewCharacter() {
@@ -463,13 +682,22 @@
             const charData = getRandomUniqueCharacter();
             if (!charData) return; 
 
+            // 隨機分配一個霓虹色
+            const neonStyle = neonColors[Math.floor(Math.random() * neonColors.length)];
+
             const charElement = document.createElement('div');
             charElement.className = 'falling-character';
-            charElement.innerHTML = `<span class="text-2xl">${charData.char}</span><span class="text-xs text-cyan-300 mt-1">${charData.bopomofo} (${charData.englishKeys})</span>`;
+            charElement.style.setProperty('--char-color', neonStyle.color);
+            
+            charElement.innerHTML = `
+                <span class="text-3xl filter drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]">${charData.char}</span>
+                <span class="sub-text mt-1">${charData.bopomofo} <span class="opacity-70">[${charData.englishKeys}]</span></span>
+            `;
             
             charElement.dataset.char = charData.char;
             charElement.dataset.bopomofo = charData.bopomofo;
             charElement.dataset.englishKeys = charData.englishKeys;
+            charElement.dataset.neonColor = neonStyle.color;
 
             const containerWidth = charactersContainer.clientWidth;
             let effectiveCharWidth = 80;
@@ -492,7 +720,8 @@
                 englishKeys: charData.englishKeys,
                 duration: duration,
                 startTime: Date.now(),
-                isHit: false 
+                isHit: false,
+                neonColor: neonStyle.color
             };
             fallingCharacters.push(newFcData);
 
@@ -500,7 +729,6 @@
                 this.removeEventListener('animationend', handleAnimationEnd);
                 const index = fallingCharacters.findIndex(fc => fc.element === this);
                 
-                // 只有沒被擊中的才算miss
                 if (index > -1 && !fallingCharacters[index].isHit) {
                     fallingCharacters.splice(index, 1);
                     if (this.parentNode) {
@@ -509,10 +737,15 @@
                     
                     if (gameActive) {
                         missedCount++;
-                        missedCountElement.textContent = missedCount;
+                        missedCountElement.textContent = `${missedCount}/${maxMisses}`;
+                        updateHealthBar();
                         
+                        // 震動效果
+                        gameContainer.classList.add('animate-pulse');
+                        setTimeout(() => gameContainer.classList.remove('animate-pulse'), 200);
+
                         if (missedCount >= maxMisses) {
-                            endGame("任務失敗");
+                            endGame("SYSTEM FAILURE");
                             return;
                         }
                         
@@ -538,15 +771,16 @@
             charactersContainer.innerHTML = ''; 
             
             completedCountElement.textContent = completedCount;
-            scoreElement.textContent = score;
-            missedCountElement.textContent = missedCount;
+            // Pad score with zeros
+            scoreElement.textContent = score.toString().padStart(6, '0');
+            missedCountElement.textContent = `0/${maxMisses}`;
+            updateHealthBar();
             
             inputField.focus();
             inputField.value = '';
             updateTargetLocking('');
             setupInputListeners();
             
-            // 重置砲塔
             turretIcon.style.transform = 'rotate(-45deg)';
 
             const maxChars = getCurrentMaxCharacters();
@@ -555,49 +789,35 @@
             }
         }
         
-        let turretResetTimeout; // 用於儲存自動歸位的 timer
-
-        // 射擊雷射函數
         function fireLaser(targetFc) {
             const turretRect = turretIcon.getBoundingClientRect();
-            // 注意：因為我們使用了 Explosion Proxy，原本的 targetFc.element 可能已經被移除或正在被移除
-            // 在 fireLaser 被呼叫時，element 應該還在。確保取得正確座標。
             const targetRect = targetFc.element.getBoundingClientRect();
             
-            // 砲塔中心
             const startX = turretRect.left + turretRect.width / 2;
             const startY = turretRect.top + turretRect.height / 2;
-            
-            // 目標中心
             const endX = targetRect.left + targetRect.width / 2;
             const endY = targetRect.top + targetRect.height / 2;
             
-            // 計算角度和距離
             const deltaX = endX - startX;
             const deltaY = endY - startY;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
             
-            // 修正砲塔旋轉角度：火箭預設是朝右上 (45度)，所以要 +45 修正為 0 度基準
             const rotation = angle + 45;
 
-            // 清除之前的歸位 timer，避免衝突
             if (turretResetTimeout) clearTimeout(turretResetTimeout);
 
-            // 旋轉砲塔圖示
             turretIcon.style.transform = `rotate(${rotation}deg)`; 
             turretIcon.parentElement.classList.remove('turret-fire');
-            void turretIcon.parentElement.offsetWidth; // 觸發重繪
+            void turretIcon.parentElement.offsetWidth;
             turretIcon.parentElement.classList.add('turret-fire');
 
-            // 設定自動歸位
             turretResetTimeout = setTimeout(() => {
                 if (gameActive) {
                      turretIcon.style.transform = 'rotate(-45deg)';
                 }
-            }, 600); // 0.6秒後歸位
+            }, 600);
 
-            // 創建雷射光束
             const laser = document.createElement('div');
             laser.className = 'laser-beam';
             laser.style.width = `${distance}px`;
@@ -607,13 +827,12 @@
             
             document.body.appendChild(laser);
             
-            // 雷射動畫
             const anim = laser.animate([
                 { width: '0px', opacity: 0.8 },
                 { width: `${distance}px`, opacity: 1 },
                 { width: `${distance}px`, opacity: 0 }
             ], {
-                duration: 200,
+                duration: 150,
                 easing: 'ease-out'
             });
             
@@ -623,22 +842,18 @@
             };
         }
 
-        // 觸發爆炸與加分
         function triggerExplosion(fc) {
-            // 1. 取得目標當前的螢幕座標
             const rect = fc.element.getBoundingClientRect();
-            
-            // 2. 創建替身元素 (Explosion Proxy)
+            const neonColor = fc.neonColor;
+
             const explosion = document.createElement('div');
             explosion.className = 'explosion-effect'; 
             explosion.innerHTML = fc.element.innerHTML;
-            
-            // 設定替身的位置完全重疊在原本目標上
             explosion.style.left = rect.left + 'px';
             explosion.style.top = rect.top + 'px';
-            explosion.style.backgroundColor = 'rgba(72, 219, 251, 0.8)';
+            // 讓爆炸繼承原本的霓虹色
+            explosion.style.setProperty('--char-color', neonColor);
             
-            // 3. 立即移除原本的下墜目標
             fc.element.remove();
             
             document.body.appendChild(explosion);
@@ -652,16 +867,18 @@
             const pointsEarned = 50 + speedBonus * 5;
             
             score += pointsEarned;
-            scoreElement.textContent = score;
+            scoreElement.textContent = score.toString().padStart(6, '0');
             
             const pointsIndicator = document.createElement('div');
             pointsIndicator.textContent = `+${pointsEarned}`;
-            pointsIndicator.className = 'absolute text-yellow-300 font-bold text-lg sm:text-xl z-30';
+            pointsIndicator.className = 'absolute font-bold text-xl z-30 font-mono';
+            pointsIndicator.style.color = neonColor;
+            pointsIndicator.style.textShadow = `0 0 10px ${neonColor}`;
             pointsIndicator.style.left = `${rect.left + window.scrollX}px`;
             pointsIndicator.style.top = `${rect.top + window.scrollY}px`;
-            pointsIndicator.style.animation = 'fadeUpAndOut 1s forwards ease-out';
+            pointsIndicator.style.animation = 'floatPoints 0.8s forwards ease-out';
             document.body.appendChild(pointsIndicator);
-            setTimeout(() => pointsIndicator.remove(), 950);
+            setTimeout(() => pointsIndicator.remove(), 800);
             
             const fcIndex = fallingCharacters.findIndex(item => item === fc);
             if (fcIndex !== -1) {
@@ -689,9 +906,9 @@
                     const inputValue = e.target.value;
                     
                     if (inputValue.toLowerCase() === 'quit') {
-                        const confirmed = confirm('確定要結束任務嗎？目前的成績會被記錄。');
+                        const confirmed = confirm('ABORT MISSION?');
                         if (confirmed) {
-                            endGame('任務中止');
+                            endGame('MISSION ABORTED');
                         }
                         inputField.value = '';
                         updateTargetLocking('');
@@ -820,7 +1037,7 @@
             }
         }
         
-        function endGame(reason = "任務結束") {
+        function endGame(reason = "GAME OVER") {
             if (!gameActive) return;
             gameActive = false;
             
@@ -830,8 +1047,7 @@
             gameOverTitle.textContent = reason;
             
             finalCompletedElement.textContent = completedCount; 
-            finalScoreElement.textContent = score;
-            finalMissedElement.textContent = missedCount;
+            finalScoreElement.textContent = score.toString().padStart(6, '0');
             
             const rankInfo = calculateRank(score);
             saveScore(completedCount, score, missedCount);
@@ -843,16 +1059,6 @@
             
             turretIcon.style.transform = 'rotate(-45deg)';
         }
-        
-        const styleSheet = document.createElement('style');
-        styleSheet.textContent = `
-            @keyframes fadeUpAndOut {
-                0% { opacity: 1; transform: translateY(0) scale(0.8); }
-                70% { opacity: 0.8; transform: translateY(-40px) scale(1.1); }
-                100% { opacity: 0; transform: translateY(-60px) scale(0.5); }
-            }
-        `;
-        document.head.appendChild(styleSheet);
         
         window.addEventListener('resize', () => {
             if (gameActive) {
