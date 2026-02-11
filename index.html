@@ -1,7 +1,7 @@
 <html lang="zh-TW"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中文注音打字遊戲</title>
+    <title>中文注音打字遊戲 - 射擊版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -10,7 +10,7 @@
         body {
             font-family: 'Noto Sans TC', sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            overflow: hidden; /* Prevent scrollbars from falling characters */
+            overflow: hidden;
             height: 100vh;
             margin: 0;
             padding: 0;
@@ -22,19 +22,20 @@
             animation-fill-mode: forwards;
             user-select: none;
             display: flex;
-            flex-direction: column; /* 讓字和注音垂直排列 */
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: 80px; /* 加寬以容納按鍵提示 */
+            width: 80px;
             height: 80px;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(5px);
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             font-weight: 700;
-            transition: transform 0.2s, opacity 0.2s, background 0.3s, box-shadow 0.3s;
+            transition: transform 0.2s, background 0.3s, box-shadow 0.3s;
             padding: 5px;
             text-align: center;
+            z-index: 10;
         }
         
         .falling-character.locked {
@@ -44,25 +45,85 @@
             transform: scale(1.1);
         }
         
-        .falling-character.hit {
-            transform: scale(1.5);
-            opacity: 0;
-            background: rgba(72, 219, 251, 0.8);
+        /* 獨立的爆炸效果類別 */
+        .explosion-effect {
+            position: fixed; /* 使用 fixed 定位確保座標精準 */
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            font-weight: 700;
+            padding: 5px;
+            text-align: center;
+            user-select: none;
+            /* 爆炸動畫 */
+            animation: explode 0.4s ease-out forwards;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(1); opacity: 1; background: rgba(255, 255, 255, 0.8); }
+            50% { transform: scale(1.5); opacity: 0.8; background: rgba(72, 219, 251, 1); box-shadow: 0 0 50px rgba(72, 219, 251, 0.8); }
+            100% { transform: scale(2); opacity: 0; }
         }
         
         @keyframes fall {
-            from {
-                transform: translateY(-80px); /* Start above screen */
-            }
-            to {
-                transform: translateY(100vh); /* Fall to bottom of screen */
-            }
+            from { transform: translateY(-80px); }
+            to { transform: translateY(100vh); }
+        }
+        
+        /* 雷射光束樣式 */
+        .laser-beam {
+            position: absolute;
+            height: 4px; /* 雷射粗細 */
+            background: linear-gradient(90deg, rgba(255,255,255,0.8), #00ffff, rgba(0,255,255,0));
+            transform-origin: 0 50%; /* 從左側旋轉 */
+            box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0;
+            border-radius: 2px;
+        }
+
+        /* 砲塔樣式 */
+        .turret-container {
+            position: absolute;
+            bottom: 85px; /* 在輸入框上方 */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            pointer-events: none;
+        }
+        
+        .turret-icon {
+            font-size: 3rem;
+            color: #4fd1c5;
+            text-shadow: 0 0 15px rgba(79, 209, 197, 0.6);
+            filter: drop-shadow(0 0 5px rgba(0,0,0,0.5));
+            /* 增加平滑轉向過渡 */
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: block; /* 確保 transform 正常運作 */
+        }
+
+        /* 砲塔發射時的後座力動畫 */
+        .turret-fire {
+            animation: recoil 0.1s ease-in-out;
+        }
+
+        @keyframes recoil {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+            100% { transform: translateY(0); }
         }
         
         .input-area {
             backdrop-filter: blur(10px);
             background: rgba(255, 255, 255, 0.1);
             border-top: 2px solid rgba(255, 255, 255, 0.2); 
+            z-index: 30;
         }
         
         #input-field {
@@ -81,34 +142,33 @@
         }
 
         @media (max-width: 768px) { 
-            .falling-character {
-                width: 70px;
-                height: 70px;
-            }
+            .falling-character { width: 70px; height: 70px; }
+            .explosion-effect { width: 70px; height: 70px; }
+            .turret-container { bottom: 75px; }
+            .turret-icon { font-size: 2.5rem; }
         }
 
         @media (max-width: 640px) { 
-            .falling-character {
-                width: 65px;
-                height: 65px;
-            }
+            .falling-character { width: 65px; height: 65px; }
+            .explosion-effect { width: 65px; height: 65px; }
+            .turret-container { bottom: 70px; }
         }
     </style>
 </head>
 <body class="text-white">
     <!-- 開始畫面 -->
     <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-center z-50 bg-gradient-to-br from-indigo-900 to-purple-900 p-4">
-        <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold mb-8 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">中文注音打字遊戲</h1>
-        <p class="text-lg sm:text-xl mb-8 text-center max-w-md px-4">挑戰你的中文注音打字速度！輸入正確的注音符號或對應按鍵來消滅從天而降的字元。</p>
-        <button id="start-button" class="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-lg sm:text-xl font-bold rounded-full hover:from-blue-600 hover:to-cyan-600 transition-all transform hover:scale-105 shadow-lg">開始遊戲</button>
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold mb-8 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">中文注音射擊遊戲</h1>
+        <p class="text-lg sm:text-xl mb-8 text-center max-w-md px-4">輸入正確的注音符號或按鍵，啟動雷射砲塔消滅目標！<br><span class="text-sm text-gray-300 mt-2 block">(支援標準注音輸入法與盲打按鍵)</span></p>
+        <button id="start-button" class="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-lg sm:text-xl font-bold rounded-full hover:from-blue-600 hover:to-cyan-600 transition-all transform hover:scale-105 shadow-lg">開始任務</button>
     </div>
 
     <!-- 遊戲畫面 -->
     <div id="game-container" class="hidden h-screen w-full relative">
         <!-- 狀態欄 -->
-        <div class="fixed top-0 left-0 right-0 p-2 sm:p-4 flex flex-wrap justify-around items-center gap-2 sm:gap-4 bg-black bg-opacity-30 backdrop-blur-sm z-10">
+        <div class="fixed top-0 left-0 right-0 p-2 sm:p-4 flex flex-wrap justify-around items-center gap-2 sm:gap-4 bg-black bg-opacity-30 backdrop-blur-sm z-40">
             <div class="bg-blue-900 bg-opacity-50 px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base">
-                <span class="font-medium">已完成: </span>
+                <span class="font-medium">擊落數: </span>
                 <span id="completed-count" class="text-base sm:text-lg font-bold text-cyan-400">0</span>
             </div>
             <div class="bg-purple-900 bg-opacity-50 px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base">
@@ -116,7 +176,7 @@
                 <span id="score" class="text-base sm:text-lg font-bold text-yellow-400">0</span>
             </div>
             <div class="bg-red-900 bg-opacity-50 px-3 py-1 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base">
-                <span class="font-medium">遺漏: </span>
+                <span class="font-medium">入侵: </span>
                 <span id="missed-count" class="text-base sm:text-lg font-bold text-red-400">0</span>
                 <span class="font-medium"> / 5</span>
             </div>
@@ -127,20 +187,26 @@
         
         <div id="characters-container" class="w-full h-full"></div>
         
+        <!-- 砲塔 -->
+        <div id="turret" class="turret-container">
+            <!-- 初始狀態設定為 -rotate-45，使其指向正上方 -->
+            <i class="fas fa-rocket turret-icon transform -rotate-45"></i>
+        </div>
+
         <div class="fixed bottom-0 left-0 right-0 p-2 sm:p-4 input-area">
             <div class="relative">
-                <input type="text" id="input-field" class="w-full px-4 py-3 sm:px-6 sm:py-4 text-lg sm:text-xl bg-gray-800 bg-opacity-70 border-2 border-cyan-500 rounded-full text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-400" placeholder="請直接輸入注音或對應按鍵..." autocomplete="off">
+                <input type="text" id="input-field" class="w-full px-4 py-3 sm:px-6 sm:py-4 text-lg sm:text-xl bg-gray-800 bg-opacity-70 border-2 border-cyan-500 rounded-full text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-400" placeholder="鎖定目標，輸入注音開火..." autocomplete="off">
             </div>
         </div>
     </div>
     
     <div id="game-over" class="hidden fixed inset-0 flex flex-col items-center justify-center game-over-overlay z-50 p-4">
         <div class="bg-gradient-to-br from-gray-900 to-blue-900 p-6 sm:p-8 rounded-2xl max-w-md w-full border border-blue-500 shadow-2xl">
-            <h2 id="game-over-title" class="text-2xl sm:text-3xl font-bold mb-4 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">遊戲結束</h2>
+            <h2 id="game-over-title" class="text-2xl sm:text-3xl font-bold mb-4 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">任務結束</h2>
             <div class="space-y-3 sm:space-y-4 mb-6 text-base sm:text-lg">
-                <p class="text-lg sm:text-xl text-center">你的成績：</p>
+                <p class="text-lg sm:text-xl text-center">戰果報告：</p>
                 <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-                    <span>完成字元：</span>
+                    <span>擊落目標：</span>
                     <span id="final-completed" class="font-bold text-cyan-400">0</span>
                 </div>
                 <div class="flex justify-between items-center border-b border-gray-700 pb-2">
@@ -148,27 +214,22 @@
                     <span id="final-score" class="font-bold text-yellow-400">0</span>
                 </div>
                 <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-                    <span>遺漏次數：</span>
+                    <span>入侵次數：</span>
                     <span id="final-missed" class="font-bold text-red-400">0</span>
                 </div>
                 <div class="flex justify-between items-center bg-gradient-to-r from-purple-900 to-blue-900 p-3 rounded-lg mt-4">
                     <span class="text-lg font-bold">🏆 排名：</span>
                     <span id="rank-display" class="text-xl font-bold text-yellow-300">-</span>
                 </div>
-                <div id="high-score-display" class="text-center text-sm text-gray-400 mt-2">
-                    <!-- 歷史最高分顯示 -->
-                </div>
+                <div id="high-score-display" class="text-center text-sm text-gray-400 mt-2"></div>
             </div>
             
-            <!-- TOP 10 排行榜 -->
             <div class="mb-6 bg-gray-900 bg-opacity-50 rounded-lg p-4">
-                <h3 class="text-lg font-bold text-center mb-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">🏆 TOP 10 排行榜</h3>
-                <div id="top10-list" class="space-y-2 text-sm">
-                    <!-- TOP 10 列表將動態生成 -->
-                </div>
+                <h3 class="text-lg font-bold text-center mb-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">🏆 王牌飛行員</h3>
+                <div id="top10-list" class="space-y-2 text-sm"></div>
             </div>
             <div class="flex justify-center">
-                <button id="restart-button" class="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-base sm:text-lg font-bold rounded-full hover:from-blue-600 hover:to-cyan-600 transition-all transform hover:scale-105 shadow-lg">再玩一次</button>
+                <button id="restart-button" class="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-base sm:text-lg font-bold rounded-full hover:from-blue-600 hover:to-cyan-600 transition-all transform hover:scale-105 shadow-lg">再次出擊</button>
             </div>
         </div>
     </div>
@@ -249,8 +310,7 @@
         let score = 0;
         let missedCount = 0; 
         let maxMisses = 5;
-        let initialCharactersOnScreen = 1;
-        let isComposing = false; // 用於追蹤注音輸入法組字狀態
+        let isComposing = false;
         
         const startScreen = document.getElementById('start-screen');
         const startButton = document.getElementById('start-button');
@@ -269,6 +329,8 @@
         const highScoreDisplayElement = document.getElementById('high-score-display');
         const top10ListElement = document.getElementById('top10-list');
         const restartButton = document.getElementById('restart-button');
+        const turretElement = document.getElementById('turret');
+        const turretIcon = turretElement.querySelector('i');
         
         startButton.addEventListener('click', startGame);
         restartButton.addEventListener('click', startGame);
@@ -284,11 +346,9 @@
         }
 
         function getCurrentMaxCharacters() {
-            // 每完成20個字，同時掉落的字數增加1
             return Math.floor(completedCount / 20) + 1;
         }
 
-        // 成績管理函數
         function saveScore(completed, score, missed) {
             const scoreData = {
                 completed: completed,
@@ -297,15 +357,10 @@
                 date: new Date().toISOString(),
                 timestamp: Date.now()
             };
-            
-            // 從 localStorage 讀取歷史成績
             let scores = getScores();
             scores.push(scoreData);
-            
-            // 按分數排序（降序），只保留前 10 名
             scores.sort((a, b) => b.score - a.score);
             scores = scores.slice(0, 10);
-            
             localStorage.setItem('typingGameScores', JSON.stringify(scores));
             return scoreData;
         }
@@ -317,87 +372,64 @@
         
         function calculateRank(currentScore) {
             const scores = getScores();
-            if (scores.length === 0) {
-                // 第一次遊戲
-                return { rank: 1, isNewRecord: false, inTop10: true, highScore: null };
-            }
-            
-            // 按分數排序（降序）
+            if (scores.length === 0) return { rank: 1, isNewRecord: false, inTop10: true, highScore: null };
             const sortedScores = [...scores].sort((a, b) => b.score - a.score);
             const highScore = sortedScores[0].score;
-            
-            // 計算排名
             let rank = 1;
             for (let i = 0; i < sortedScores.length; i++) {
                 if (currentScore > sortedScores[i].score) {
                     rank = i + 1;
                     break;
                 } else if (i === sortedScores.length - 1) {
-                    // 比所有記錄都低或相等
                     rank = sortedScores.length + 1;
                 }
             }
-            
-            const inTop10 = rank <= 10;
-            const isNewRecord = currentScore > highScore;
-            
-            return { rank: rank, isNewRecord: isNewRecord, inTop10: inTop10, highScore: highScore };
+            return { rank: rank, isNewRecord: currentScore > highScore, inTop10: rank <= 10, highScore: highScore };
         }
         
         function displayRankInfo(rank, isNewRecord, inTop10, highScore, currentScore) {
-            // 顯示排名
             if (inTop10) {
-                const rankText = `第 ${rank} 名`;
-                rankDisplayElement.textContent = rankText;
+                rankDisplayElement.textContent = `第 ${rank} 名`;
             } else {
                 rankDisplayElement.textContent = '未上榜';
             }
             
-            // 顯示額外信息
             if (rank === 1 && !highScore) {
-                // 第一次遊戲
-                highScoreDisplayElement.innerHTML = '<span class="text-cyan-400">這是你的第一次遊戲！</span>';
+                highScoreDisplayElement.innerHTML = '<span class="text-cyan-400">王牌飛行員誕生！</span>';
             } else if (isNewRecord) {
                 highScoreDisplayElement.innerHTML = '<span class="text-yellow-400 font-bold">🎉 恭喜！創造新紀錄！</span>';
             } else if (inTop10) {
                 const difference = highScore - currentScore;
                 highScoreDisplayElement.innerHTML = `<span class="text-gray-400">最高分：${highScore} 分</span><br><span class="text-sm text-gray-500">距離最高分還差 ${difference} 分</span>`;
             } else {
-                // 未上榜，顯示距離 TOP 10 的差距
                 const scores = getScores();
                 const lowestTop10Score = scores[Math.min(9, scores.length - 1)]?.score || 0;
                 const difference = lowestTop10Score - currentScore + 1;
-                highScoreDisplayElement.innerHTML = `<span class="text-gray-400">繼續努力！</span><br><span class="text-sm text-gray-500">距離 TOP 10 還差 ${difference} 分</span>`;
+                highScoreDisplayElement.innerHTML = `<span class="text-gray-400">繼續加油！</span><br><span class="text-sm text-gray-500">距離 TOP 10 還差 ${difference} 分</span>`;
             }
         }
         
         function getTop10Scores() {
             const scores = getScores();
-            // 按分數排序（降序），取前 10 名
             return [...scores].sort((a, b) => b.score - a.score).slice(0, 10);
         }
         
         function formatDate(isoString) {
             const date = new Date(isoString);
-            const month = date.getMonth() + 1;
-            const day = date.getDate();
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            return `${month}/${day} ${hours}:${minutes}`;
+            return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
         }
         
         function displayTop10(currentScore) {
             const top10 = getTop10Scores();
-            
             if (top10.length === 0) {
-                top10ListElement.innerHTML = '<p class="text-center text-gray-400">還沒有歷史記錄</p>';
+                top10ListElement.innerHTML = '<p class="text-center text-gray-400">暫無飛行紀錄</p>';
                 return;
             }
             
             let html = '';
             top10.forEach((scoreData, index) => {
                 const rank = index + 1;
-                const isCurrentScore = Math.abs(scoreData.timestamp - Date.now()) < 1000; // 1秒內的記錄視為當前成績
+                const isCurrentScore = Math.abs(scoreData.timestamp - Date.now()) < 1000;
                 const bgClass = isCurrentScore ? 'bg-gradient-to-r from-yellow-900 to-orange-900 border border-yellow-500' : 'bg-gray-800 bg-opacity-50';
                 const medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
                 
@@ -411,7 +443,7 @@
                                     <span class="text-xs text-gray-400">${formatDate(scoreData.date)}</span>
                                 </div>
                                 <div class="text-xs text-gray-300">
-                                    完成 ${scoreData.completed} 字 | 遺漏 ${scoreData.missed} 次
+                                    擊落 ${scoreData.completed} | 入侵 ${scoreData.missed}
                                 </div>
                             </div>
                         </div>
@@ -419,14 +451,12 @@
                     </div>
                 `;
             });
-            
             top10ListElement.innerHTML = html;
         }
 
         function spawnNewCharacter() {
             if (!gameActive) return;
 
-            // 檢查當前畫面上的字數是否已達到最大值
             const maxChars = getCurrentMaxCharacters();
             if (fallingCharacters.length >= maxChars) return;
 
@@ -461,35 +491,35 @@
                 bopomofo: charData.bopomofo,
                 englishKeys: charData.englishKeys,
                 duration: duration,
-                startTime: Date.now()
+                startTime: Date.now(),
+                isHit: false 
             };
             fallingCharacters.push(newFcData);
 
-            charElement.addEventListener('animationend', function handleAnimationEnd() {
+            charElement.addEventListener('animationend', function handleAnimationEnd(e) {
                 this.removeEventListener('animationend', handleAnimationEnd);
                 const index = fallingCharacters.findIndex(fc => fc.element === this);
-                if (index > -1) {
-                    fallingCharacters.splice(index, 1);
-                }
-                if (this.parentNode) {
-                    this.parentNode.removeChild(this);
-                }
                 
-                // 字掉落到底部，增加遺漏計數
-                if (gameActive) {
-                    missedCount++;
-                    missedCountElement.textContent = missedCount;
-                    
-                    // 檢查是否達到遺漏上限
-                    if (missedCount >= maxMisses) {
-                        endGame("GAME OVER");
-                        return;
+                // 只有沒被擊中的才算miss
+                if (index > -1 && !fallingCharacters[index].isHit) {
+                    fallingCharacters.splice(index, 1);
+                    if (this.parentNode) {
+                        this.parentNode.removeChild(this);
                     }
                     
-                    // 檢查當前應該有多少個字，可能需要生成多個
-                    const maxChars = getCurrentMaxCharacters();
-                    while (fallingCharacters.length < maxChars && gameActive) {
-                        spawnNewCharacter();
+                    if (gameActive) {
+                        missedCount++;
+                        missedCountElement.textContent = missedCount;
+                        
+                        if (missedCount >= maxMisses) {
+                            endGame("任務失敗");
+                            return;
+                        }
+                        
+                        const maxChars = getCurrentMaxCharacters();
+                        while (fallingCharacters.length < maxChars && gameActive) {
+                            spawnNewCharacter();
+                        }
                     }
                 }
             });
@@ -513,108 +543,211 @@
             
             inputField.focus();
             inputField.value = '';
-            updateTargetLocking(''); // 確保沒有鎖定狀態
+            updateTargetLocking('');
             setupInputListeners();
+            
+            // 重置砲塔
+            turretIcon.style.transform = 'rotate(-45deg)';
 
-            // 根據當前目標數量生成初始字元
             const maxChars = getCurrentMaxCharacters();
             for (let i = 0; i < maxChars; i++) {
                 spawnNewCharacter();
             }
         }
         
+        let turretResetTimeout; // 用於儲存自動歸位的 timer
+
+        // 射擊雷射函數
+        function fireLaser(targetFc) {
+            const turretRect = turretIcon.getBoundingClientRect();
+            // 注意：因為我們使用了 Explosion Proxy，原本的 targetFc.element 可能已經被移除或正在被移除
+            // 在 fireLaser 被呼叫時，element 應該還在。確保取得正確座標。
+            const targetRect = targetFc.element.getBoundingClientRect();
+            
+            // 砲塔中心
+            const startX = turretRect.left + turretRect.width / 2;
+            const startY = turretRect.top + turretRect.height / 2;
+            
+            // 目標中心
+            const endX = targetRect.left + targetRect.width / 2;
+            const endY = targetRect.top + targetRect.height / 2;
+            
+            // 計算角度和距離
+            const deltaX = endX - startX;
+            const deltaY = endY - startY;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+            
+            // 修正砲塔旋轉角度：火箭預設是朝右上 (45度)，所以要 +45 修正為 0 度基準
+            const rotation = angle + 45;
+
+            // 清除之前的歸位 timer，避免衝突
+            if (turretResetTimeout) clearTimeout(turretResetTimeout);
+
+            // 旋轉砲塔圖示
+            turretIcon.style.transform = `rotate(${rotation}deg)`; 
+            turretIcon.parentElement.classList.remove('turret-fire');
+            void turretIcon.parentElement.offsetWidth; // 觸發重繪
+            turretIcon.parentElement.classList.add('turret-fire');
+
+            // 設定自動歸位
+            turretResetTimeout = setTimeout(() => {
+                if (gameActive) {
+                     turretIcon.style.transform = 'rotate(-45deg)';
+                }
+            }, 600); // 0.6秒後歸位
+
+            // 創建雷射光束
+            const laser = document.createElement('div');
+            laser.className = 'laser-beam';
+            laser.style.width = `${distance}px`;
+            laser.style.left = `${startX}px`;
+            laser.style.top = `${startY}px`;
+            laser.style.transform = `rotate(${angle}deg)`;
+            
+            document.body.appendChild(laser);
+            
+            // 雷射動畫
+            const anim = laser.animate([
+                { width: '0px', opacity: 0.8 },
+                { width: `${distance}px`, opacity: 1 },
+                { width: `${distance}px`, opacity: 0 }
+            ], {
+                duration: 200,
+                easing: 'ease-out'
+            });
+            
+            anim.onfinish = () => {
+                laser.remove();
+                triggerExplosion(targetFc);
+            };
+        }
+
+        // 觸發爆炸與加分
+        function triggerExplosion(fc) {
+            // 1. 取得目標當前的螢幕座標
+            const rect = fc.element.getBoundingClientRect();
+            
+            // 2. 創建替身元素 (Explosion Proxy)
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion-effect'; 
+            explosion.innerHTML = fc.element.innerHTML;
+            
+            // 設定替身的位置完全重疊在原本目標上
+            explosion.style.left = rect.left + 'px';
+            explosion.style.top = rect.top + 'px';
+            explosion.style.backgroundColor = 'rgba(72, 219, 251, 0.8)';
+            
+            // 3. 立即移除原本的下墜目標
+            fc.element.remove();
+            
+            document.body.appendChild(explosion);
+            
+            explosion.addEventListener('animationend', () => {
+                explosion.remove();
+            });
+            
+            const elapsedTime = (Date.now() - fc.startTime) / 1000;
+            const speedBonus = Math.max(1, Math.floor(10 - elapsedTime * 0.5));
+            const pointsEarned = 50 + speedBonus * 5;
+            
+            score += pointsEarned;
+            scoreElement.textContent = score;
+            
+            const pointsIndicator = document.createElement('div');
+            pointsIndicator.textContent = `+${pointsEarned}`;
+            pointsIndicator.className = 'absolute text-yellow-300 font-bold text-lg sm:text-xl z-30';
+            pointsIndicator.style.left = `${rect.left + window.scrollX}px`;
+            pointsIndicator.style.top = `${rect.top + window.scrollY}px`;
+            pointsIndicator.style.animation = 'fadeUpAndOut 1s forwards ease-out';
+            document.body.appendChild(pointsIndicator);
+            setTimeout(() => pointsIndicator.remove(), 950);
+            
+            const fcIndex = fallingCharacters.findIndex(item => item === fc);
+            if (fcIndex !== -1) {
+                fallingCharacters.splice(fcIndex, 1);
+            }
+            
+            completedCount++;
+            completedCountElement.textContent = completedCount;
+            
+            if (gameActive) {
+                const maxChars = getCurrentMaxCharacters();
+                while (fallingCharacters.length < maxChars && gameActive) {
+                    spawnNewCharacter();
+                }
+            }
+        }
+
         let inputListenersSetup = false;
         
         function setupInputListeners() {
             if (inputListenersSetup) return;
 
             const inputHandler = (e) => {
-                // 對於非組字輸入(如英文鍵盤)，即時處理
                 if (!isComposing) {
                     const inputValue = e.target.value;
                     
-                    // 檢測 quit 命令
                     if (inputValue.toLowerCase() === 'quit') {
-                        const confirmed = confirm('確定要結束遊戲嗎？目前的成績會被記錄。');
+                        const confirmed = confirm('確定要結束任務嗎？目前的成績會被記錄。');
                         if (confirmed) {
-                            endGame('提前結束');
+                            endGame('任務中止');
                         }
                         inputField.value = '';
                         updateTargetLocking('');
                         return;
                     }
                     
-                    // 更新目標鎖定高亮
                     updateTargetLocking(inputValue);
-                    
                     processInput(inputValue);
                     
-                    // 檢查輸入是否包含聲調鍵 (3, 4, 6, 7)
-                    // 如果包含聲調，處理後立即清空輸入區
                     const toneKeys = ['3', '4', '6', '7'];
                     const lastChar = inputValue.slice(-1);
                     if (toneKeys.includes(lastChar)) {
                         setTimeout(() => {
                             if (!isComposing) {
                                 inputField.value = '';
-                                updateTargetLocking(''); // 清除所有鎖定
+                                updateTargetLocking('');
                             }
                         }, 10);
                     }
                 }
             };
 
-            const compositionStartHandler = () => {
-                isComposing = true;
-            };
-
-            const compositionUpdateHandler = (e) => {
-                // 在組字過程中也更新鎖定狀態
-                if (e.data) {
-                    updateTargetLocking(e.data);
-                }
-            };
-
+            const compositionStartHandler = () => { isComposing = true; };
+            const compositionUpdateHandler = (e) => { if (e.data) updateTargetLocking(e.data); };
             const compositionEndHandler = (e) => {
                 isComposing = false;
-                // 在組字結束後，處理最終的注音字串
                 processInput(e.data || e.target.value);
-                // 使用 setTimeout 確保瀏覽器完成渲染後再清空，避免衝突
                 setTimeout(() => {
                     if (inputField.value === (e.data || e.target.value)) {
                        inputField.value = '';
-                       updateTargetLocking(''); // 清除所有鎖定
+                       updateTargetLocking('');
                     }
                 }, 0);
             };
             
             const keyDownHandler = (e) => {
-                // 空白鍵代表一聲（無聲調符號）
                 if (e.key === ' ') {
                     const currentInput = e.target.value;
                     if (!currentInput) return;
-
                     const potentialMatch = currentInput + ' ';
                     const targetFc = findMatchingChar(potentialMatch);
-
                     e.preventDefault();
                     if (targetFc) {
-                        handleSuccess(targetFc);
+                        handleHitLogic(targetFc);
                     }
-                    // 不論是否成功，都清除輸入區和鎖定狀態
                     inputField.value = '';
                     updateTargetLocking('');
                 }
             };
 
-            // 確保移除舊的監聽器，避免重複綁定
             inputField.removeEventListener('input', inputHandler);
             inputField.removeEventListener('keydown', keyDownHandler);
             inputField.removeEventListener('compositionstart', compositionStartHandler);
             inputField.removeEventListener('compositionupdate', compositionUpdateHandler);
             inputField.removeEventListener('compositionend', compositionEndHandler);
 
-            // 重新綁定監聽器
             inputField.addEventListener('input', inputHandler);
             inputField.addEventListener('keydown', keyDownHandler);
             inputField.addEventListener('compositionstart', compositionStartHandler);
@@ -629,10 +762,11 @@
             let maxProgress = -1;
 
             for (const fc of fallingCharacters) {
+                if (fc.isHit) continue;
+                
                 if ((fc.bopomofo === typedValue || fc.char === typedValue || fc.englishKeys.toLowerCase() === typedValue.toLowerCase()) && fc.element.parentNode) {
                     const elapsedTime = (Date.now() - fc.startTime) / 1000;
                     const progress = elapsedTime / fc.duration;
-                    
                     if (progress > maxProgress) {
                         maxProgress = progress;
                         targetFc = fc;
@@ -642,53 +776,19 @@
             return targetFc;
         }
 
-        function handleSuccess(fc) {
-            const fcIndex = fallingCharacters.findIndex(item => item === fc);
-            if (fcIndex === -1) return;
-
-            fc.element.classList.add('hit');
-            fc.element.classList.remove('locked'); // 移除鎖定狀態
-            
-            const elapsedTime = (Date.now() - fc.startTime) / 1000;
-            const speedBonus = Math.max(1, Math.floor(10 - elapsedTime * 0.5));
-            const pointsEarned = 50 + speedBonus * 5;
-            
-            score += pointsEarned;
-            scoreElement.textContent = score;
-            
-            const pointsIndicator = document.createElement('div');
-            pointsIndicator.textContent = `+${pointsEarned}`;
-            pointsIndicator.className = 'absolute text-yellow-300 font-bold text-lg sm:text-xl';
-            const rect = fc.element.getBoundingClientRect();
-            pointsIndicator.style.left = `${rect.left + window.scrollX}px`;
-            pointsIndicator.style.top = `${rect.top + window.scrollY}px`;
-            pointsIndicator.style.animation = 'fadeUpAndOut 1s forwards ease-out';
-            document.body.appendChild(pointsIndicator);
-            setTimeout(() => pointsIndicator.parentNode?.removeChild(pointsIndicator), 950);
-            
-            setTimeout(() => fc.element.parentNode?.removeChild(fc.element), 200);
-            fallingCharacters.splice(fcIndex, 1);
-            
-            completedCount++;
-            completedCountElement.textContent = completedCount;
-            
-            if (gameActive) {
-                // 檢查當前應該有多少個字，可能需要生成多個
-                const maxChars = getCurrentMaxCharacters();
-                while (fallingCharacters.length < maxChars && gameActive) {
-                    spawnNewCharacter();
-                }
-            }
+        function handleHitLogic(fc) {
+            if (fc.isHit) return;
+            fc.isHit = true;
+            fc.element.classList.remove('locked');
+            fireLaser(fc);
         }
         
         function processInput(inputValue) {
             if (!inputValue || !gameActive) return;
-            
             const targetFc = findMatchingChar(inputValue);
 
             if (targetFc) {
-                handleSuccess(targetFc);
-                // 英文輸入模式下，成功後立即清空
+                handleHitLogic(targetFc);
                 if (!isComposing) {
                     inputField.value = '';
                 }
@@ -696,9 +796,8 @@
         }
         
         function updateTargetLocking(inputValue) {
-            // 更新所有字元的鎖定狀態
             fallingCharacters.forEach(fc => {
-                if (!fc.element.parentNode) return;
+                if (!fc.element.parentNode || fc.isHit) return;
                 
                 const isMatch = inputValue && (
                     fc.englishKeys.toLowerCase().startsWith(inputValue.toLowerCase()) ||
@@ -712,7 +811,6 @@
                 }
             });
             
-            // 如果輸入為空，移除所有鎖定
             if (!inputValue) {
                 fallingCharacters.forEach(fc => {
                     if (fc.element.parentNode) {
@@ -722,9 +820,11 @@
             }
         }
         
-        function endGame(reason = "遊戲結束") {
+        function endGame(reason = "任務結束") {
             if (!gameActive) return;
             gameActive = false;
+            
+            if (turretResetTimeout) clearTimeout(turretResetTimeout);
             
             gameOverScreen.classList.remove('hidden');
             gameOverTitle.textContent = reason;
@@ -733,16 +833,15 @@
             finalScoreElement.textContent = score;
             finalMissedElement.textContent = missedCount;
             
-            // 先計算排名，再保存成績
             const rankInfo = calculateRank(score);
             saveScore(completedCount, score, missedCount);
             displayRankInfo(rankInfo.rank, rankInfo.isNewRecord, rankInfo.inTop10, rankInfo.highScore, score);
-            
-            // 顯示 TOP 10 排行榜
             displayTop10(score);
             
             charactersContainer.innerHTML = '';
             fallingCharacters = [];
+            
+            turretIcon.style.transform = 'rotate(-45deg)';
         }
         
         const styleSheet = document.createElement('style');
@@ -782,5 +881,4 @@
             }
         });
     </script>
-
 </body></html>
